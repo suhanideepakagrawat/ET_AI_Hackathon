@@ -76,7 +76,7 @@ SUMMER_MONTHS        = {4,5,6}
 CROP_BURNING_MONTHS  = {10,11}
 
 # Default source timestamp — latest hour with broad cell coverage
-DEFAULT_SOURCE_TS = pd.Timestamp("2026-07-04 22:00:00")
+DEFAULT_SOURCE_TS = None
 
 
 # ─── STEP 1: Load cell AQI series ────────────────────────────────────────────
@@ -314,16 +314,16 @@ def main():
     parser = argparse.ArgumentParser(description="Live AQI forecast — 24h/48h/72h")
     parser.add_argument(
         "--source-timestamp",
-        default=str(DEFAULT_SOURCE_TS),
+        default=None,
         help=(
-            f"Source timestamp for inference (default: {DEFAULT_SOURCE_TS}). "
-            "Use the latest timestamp with broad cell coverage — check "
-            "cell_aqi_estimated.csv to find it."
+            f"Optional source timestamp (YYYY-MM-DD HH:MM:SS). "
+            "If omitted, the script automatically chooses the latest "
+            "timestamp with sufficient cell coverage."
         ),
     )
     parser.add_argument(
         "--dataset",
-        default=os.path.join(DATA_DIR, "training_dataset_2026_recent.csv"),
+        default=os.path.join(DATA_DIR, "training_dataset.csv"),
         help="Training dataset CSV for source-time weather + static features.",
     )
     parser.add_argument(
@@ -338,10 +338,7 @@ def main():
     )
     args = parser.parse_args()
 
-    source_ts = pd.Timestamp(args.source_timestamp)
-
     print(f"\n{'='*60}")
-    print(f"  AQI Live Inference  —  source: {source_ts}")
     print(f"  Horizons: {HORIZONS}")
     print(f"{'='*60}\n")
 
@@ -349,8 +346,12 @@ def main():
     print("[1/5] Loading cell AQI series (Model 1 output)")
     aqi_df = load_cell_aqi(args.estimated_csv)
     n_cells = aqi_df["cell_id"].nunique()
-    print(f"       NOTE: {n_cells} cells available — "
-          f"{'claim 1600-cell forecast only after fixing upstream grid coverage' if n_cells < 1600 else 'full 1600-cell coverage confirmed'}")
+
+    # ------------------------------------------------------------------
+    print(
+        f"       NOTE: {n_cells} cells available — "
+        f"{'claim 1600-cell forecast only after fixing upstream grid coverage' if n_cells < 1600 else 'full 1600-cell coverage confirmed'}"
+    )
 
     print("\n[2/5] Loading source-time weather + static features")
     static_df = load_static_and_weather(args.dataset)
@@ -360,6 +361,53 @@ def main():
 
     print("\n[4/5] Loading forecast weather")
     fw = load_forecast_weather(args.forecast_weather)
+
+    # ------------------------------------------------------------------
+    # Choose source timestamp AFTER loading forecast weather
+    # ------------------------------------------------------------------
+    if args.source_timestamp:
+        source_ts = pd.Timestamp(args.source_timestamp)
+        print(f"Using user-specified source timestamp: {source_ts}")
+    else:
+        coverage = (
+            aqi_df.groupby("timestamp")["cell_id"]
+            .nunique()
+            .sort_index()
+        )
+
+        MIN_CELLS = 1400
+
+        forecast_start = fw.index.min()
+        forecast_end = fw.index.max()
+
+        valid = coverage[coverage >= MIN_CELLS]
+
+        # Keep only timestamps whose +72h target is inside the weather window
+        valid = valid[
+            (valid.index + pd.Timedelta(hours=24) >= forecast_start)
+            &
+            (valid.index + pd.Timedelta(hours=72) <= forecast_end)
+        ]
+
+        if valid.empty:
+            raise RuntimeError(
+                f"No AQI timestamp with >= {MIN_CELLS} cells fits inside the "
+                f"forecast weather window ({forecast_start} → {forecast_end}).\n"
+                f"  AQI history covers {coverage.index.min()} → {coverage.index.max()}.\n"
+                f"  This is almost always a data-staleness problem, not a logic bug:\n"
+                f"  forecast_weather.csv is always anchored to 'today', so if\n"
+                f"  cell_aqi_estimated.csv wasn't regenerated recently, the two\n"
+                f"  windows won't overlap. Re-run fetch_real_data.py and\n"
+                f"  train_spatial_estimator.py to refresh the AQI history up to\n"
+                f"  the present, then re-run this script."
+            )
+
+        source_ts = valid.index.max()
+
+        print(
+            f"Auto-selected source timestamp: {source_ts} "
+            f"({coverage.loc[source_ts]} cells)"
+        )
 
     # Verify all three target timestamps are in the forecast window
     for h in HORIZONS:
