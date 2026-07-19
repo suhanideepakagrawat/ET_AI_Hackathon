@@ -718,36 +718,138 @@ def add_lag_features(df: pd.DataFrame) -> pd.DataFrame:
 #   - ALL static per-cell columns present on cells_meta (land use %, traffic
 #     index, or anything added later) are carried forward automatically.
 # ─────────────────────────────────────────────────────────────────────────────
-def assemble_cell_hour_table(cells_meta: pd.DataFrame, station_wide: pd.DataFrame) -> pd.DataFrame:
-    print("  Assembling cell-hour table from real station series (no invented rows) ...")
-    pollutant_cols = [c for c in ["pm25","pm10","no2","so2","o3","co"] if c in station_wide.columns]
-    station_groups = {name: g.sort_values("timestamp") for name, g in station_wide.groupby("station")}
+def assemble_cell_hour_table(
+    cells_meta: pd.DataFrame,
+    station_wide: pd.DataFrame,
+    timestamps: pd.DataFrame,
+) -> pd.DataFrame:
 
-    core_cols = {"cell_id", "lat", "lon", "nearest_station", "nearest_dist_km", "has_station"}
-    static_extra_cols = [c for c in cells_meta.columns if c not in core_cols]
+    print("  Assembling cell-hour table from real station series (no invented rows) ...")
+
+    pollutant_cols = [
+        c for c in ["pm25", "pm10", "no2", "so2", "o3", "co"]
+        if c in station_wide.columns
+    ]
+
+    station_groups = {
+        name: g.sort_values("timestamp")
+        for name, g in station_wide.groupby("station")
+    }
+
+    core_cols = {
+        "cell_id",
+        "lat",
+        "lon",
+        "nearest_station",
+        "nearest_dist_km",
+        "has_station",
+    }
+
+    static_extra_cols = [
+        c for c in cells_meta.columns
+        if c not in core_cols
+    ]
+
     if static_extra_cols:
-        print(f"  → carrying forward static per-cell columns: {static_extra_cols}")
+        print(
+            f"  → carrying forward static per-cell columns: {static_extra_cols}"
+        )
 
     all_rows = []
+
+    ####################################################################
+    # MASTER TIMELINE
+    ####################################################################
+
+    master_time = pd.DataFrame({
+        "timestamp": timestamps
+    })
+
+    ####################################################################
+    # BUILD EVERY CELL
+    ####################################################################
+
     for c in cells_meta.itertuples():
+
         s = station_groups.get(c.nearest_station)
+
+        ############################################################
+        # Station never reported
+        ############################################################
+
         if s is None or s.empty:
-            continue
-        block = s[["timestamp", *pollutant_cols, "true_aqi"]].copy()
+
+            block = master_time.copy()
+
+            for p in pollutant_cols:
+                block[p] = np.nan
+
+            block["true_aqi"] = np.nan
+
+        ############################################################
+        # Station has observations
+        ############################################################
+
+        else:
+
+            block = master_time.merge(
+                s[
+                    [
+                        "timestamp",
+                        *pollutant_cols,
+                        "true_aqi",
+                    ]
+                ],
+                on="timestamp",
+                how="left",
+                sort=True,
+            )
+
+            value_cols = pollutant_cols + ["true_aqi"]
+
+            ########################################################
+            # Carry values forward
+            ########################################################
+
+            block[value_cols] = block[value_cols].ffill()
+
+            ########################################################
+            # Fill beginning if first few hours are missing
+            ########################################################
+
+            block[value_cols] = block[value_cols].bfill()
+
+        ############################################################
+        # Metadata
+        ############################################################
+
         block["cell_id"] = c.cell_id
         block["lat"] = c.lat
         block["lon"] = c.lon
+
         block["nearest_station"] = c.nearest_station
         block["nearest_dist_km"] = c.nearest_dist_km
         block["has_station"] = c.has_station
+
         for col in static_extra_cols:
             block[col] = getattr(c, col)
+
+        ############################################################
+        # Ground truth only exists for station cells
+        ############################################################
+
         if c.has_station != 1:
-            block["true_aqi"] = np.nan  # proxy features only; not this cell's own ground truth
+            block["true_aqi"] = np.nan
+
         all_rows.append(block)
 
     df = pd.concat(all_rows, ignore_index=True)
-    print(f"  → {len(df):,} real cell-hour rows ({df['true_aqi'].notna().sum():,} with real true_aqi labels)")
+
+    print(
+        f"  → {len(df):,} real cell-hour rows "
+        f"({df['true_aqi'].notna().sum():,} with real true_aqi labels)"
+    )
+
     return df
 
 
@@ -849,7 +951,18 @@ def main():
     cells_meta = merge_landuse_if_available(cells_meta)
 
     print("\n[6/8] Assembling cell-hour table from real station series")
-    df = assemble_cell_hour_table(cells_meta, station_wide)
+    timestamps = (
+        station_wide["timestamp"]
+        .drop_duplicates()
+        .sort_values()
+        .reset_index(drop=True)
+    )
+
+    df = assemble_cell_hour_table(
+        cells_meta,
+        station_wide,
+        timestamps,
+    )
 
     print(f"\n     Real historical weather {df['timestamp'].min()} → {df['timestamp'].max()}")
     weather = fetch_openmeteo_history(df["timestamp"].min().date(), df["timestamp"].max().date())
