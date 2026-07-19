@@ -332,9 +332,23 @@ def predict_all_cells(model, dataset_path: str) -> pd.DataFrame:
         X[f"proxy_{p}"] = df[p]
     X[FEATURE_COLS] = X[FEATURE_COLS].replace([np.inf, -np.inf], np.nan)
 
-    df["predicted_aqi"] = model.predict(X[FEATURE_COLS])
-    # For real station cells, use the actual measured value (not the model's estimate)
-    df["predicted_aqi"] = np.where(df["has_station"] == 1, df["true_aqi"], df["predicted_aqi"])
+    # Model prediction for every row
+    # Model prediction for every row
+    pred = model.predict(X[FEATURE_COLS]).astype("float64")
+
+    # Create the output column as float64
+    df["predicted_aqi"] = pred
+
+    # Only overwrite when a real observation actually exists
+    mask = (df["has_station"] == 1) & df["true_aqi"].notna()
+
+    df["predicted_aqi"] = np.where(
+        mask,
+        df["true_aqi"].astype("float64"),
+        df["predicted_aqi"],
+    )
+
+    # Safety clamp
     df["predicted_aqi"] = df["predicted_aqi"].clip(0, 500)
     df["is_estimated"]  = (df["has_station"] != 1).astype(int)
 
