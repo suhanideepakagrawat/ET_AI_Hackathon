@@ -1,0 +1,8 @@
+# Feature 4 (Citizen Advisory) + Feature 5 (Multi-city) — backend deps.
+# Deliberately small: the advisory runs on these alone (no ML libs needed).
+fastapi>=0.110
+uvicorn[standard]>=0.27
+requests>=2.31
+pyyaml>=6.0
+pandas>=2.0          # only used when the real source_attribution.csv is present
+pydantic>=2.5

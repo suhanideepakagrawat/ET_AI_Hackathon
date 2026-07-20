@@ -1,0 +1,42 @@
+{
+  "city": "mumbai",
+  "note": "MOCK — demonstrates the parameterised second city (Feature 5). Coastal Mumbai runs lower than Delhi; Chembur (industrial) is the local hotspot.",
+  "zones": [
+    {
+      "zone_id": "MB-CHEMBUR", "name": "Chembur", "lat": 19.0620, "lon": 72.9000,
+      "forecast": {"24": 214, "48": 226, "72": 205},
+      "sources": {"traffic": 27, "industry": 56, "construction": 17},
+      "dominant_source": "Industry", "dominant_source_pct": 56, "confidence": 0.74
+    },
+    {
+      "zone_id": "MB-ANDHERI", "name": "Andheri East", "lat": 19.1197, "lon": 72.8468,
+      "forecast": {"24": 176, "48": 184, "72": 168},
+      "sources": {"traffic": 44, "industry": 23, "construction": 33},
+      "dominant_source": "Traffic/Roads", "dominant_source_pct": 44, "confidence": 0.66
+    },
+    {
+      "zone_id": "MB-BANDRA", "name": "Bandra", "lat": 19.0596, "lon": 72.8295,
+      "forecast": {"24": 138, "48": 146, "72": 131},
+      "sources": {"traffic": 49, "industry": 15, "construction": 36},
+      "dominant_source": "Traffic/Roads", "dominant_source_pct": 49, "confidence": 0.6
+    },
+    {
+      "zone_id": "MB-POWAI", "name": "Powai", "lat": 19.1176, "lon": 72.9060,
+      "forecast": {"24": 119, "48": 127, "72": 114},
+      "sources": {"traffic": 31, "industry": 18, "construction": 51},
+      "dominant_source": "Construction/Dust", "dominant_source_pct": 51, "confidence": 0.58
+    },
+    {
+      "zone_id": "MB-WORLI", "name": "Worli", "lat": 19.0176, "lon": 72.8175,
+      "forecast": {"24": 96, "48": 103, "72": 91},
+      "sources": {"traffic": 52, "industry": 16, "construction": 32},
+      "dominant_source": "Traffic/Roads", "dominant_source_pct": 52, "confidence": 0.56
+    },
+    {
+      "zone_id": "MB-COLABA", "name": "Colaba", "lat": 18.9067, "lon": 72.8147,
+      "forecast": {"24": 74, "48": 81, "72": 69},
+      "sources": {"traffic": 41, "industry": 12, "construction": 47},
+      "dominant_source": "Construction/Dust", "dominant_source_pct": 47, "confidence": 0.53
+    }
+  ]
+}
