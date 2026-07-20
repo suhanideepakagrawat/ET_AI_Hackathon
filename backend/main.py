@@ -28,3 +28,29 @@ async def health_check():
         "status": "Operational",
         "service": "AQI Predictor Backend"
     }
+
+
+# ---------------------------------------------------------------------------
+# Feature 4 (Citizen Health Advisory, multilingual) + Feature 5 (Multi-city)
+# Owner: Bind. Mounts the advisory API (/advisory, /chat, /compare, /sources,
+# /tts, /meta, /wards) into this unified backend and serves the citizen chat UI
+# at /citizen. It reads the SAME data/source_attribution.csv contract as
+# /api/v1/attribution, falling back to committed mock data when the CSV is absent
+# — so it runs even before the ML CSVs land. Its own /health is shadowed by the
+# system one above (harmless).
+# ---------------------------------------------------------------------------
+import os
+
+from fastapi.responses import FileResponse
+
+from backend.advisory_api import router as advisory_router
+
+app.include_router(advisory_router, tags=["Citizen Advisory (F4/F5)"])
+
+
+@app.get("/citizen", include_in_schema=False)
+def citizen_ui():
+    """Serve the WhatsApp-style citizen advisory chat UI."""
+    ui = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                      "frontend", "advisory_demo.html")
+    return FileResponse(ui)
