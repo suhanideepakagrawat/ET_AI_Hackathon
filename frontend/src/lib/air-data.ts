@@ -128,12 +128,16 @@ export const CELLS: Cell[] = (() => {
   return out;
 })();
 
-export function aqiCategory(aqi: number): { label: string; color: string } {
-  if (aqi <= 100) return { label: "Moderate", color: "#8FD694" };
-  if (aqi <= 200) return { label: "Poor", color: "var(--source-traffic)" };
-  if (aqi <= 300) return { label: "Very Poor", color: "var(--source-construction)" };
-  if (aqi <= 400) return { label: "Severe", color: "var(--source-burning)" };
-  return { label: "Hazardous", color: "#7A1F1F" };
+// CPCB National AQI categories — a public standard, never recolored for taste.
+// `text` follows the Legible Band Rule: ink on the light bands (Good, Satisfactory,
+// Moderate), white only on Poor / Very Poor / Severe.
+export function aqiCategory(aqi: number): { label: string; labelHi: string; color: string; text: string } {
+  if (aqi <= 50) return { label: "Good", labelHi: "अच्छा", color: "#009966", text: "#0e1a1c" };
+  if (aqi <= 100) return { label: "Satisfactory", labelHi: "संतोषजनक", color: "#84cf33", text: "#0e1a1c" };
+  if (aqi <= 200) return { label: "Moderate", labelHi: "मध्यम", color: "#ffde33", text: "#0e1a1c" };
+  if (aqi <= 300) return { label: "Poor", labelHi: "ख़राब", color: "#ff9933", text: "#0e1a1c" };
+  if (aqi <= 400) return { label: "Very Poor", labelHi: "बहुत ख़राब", color: "#cc0033", text: "#ffffff" };
+  return { label: "Severe", labelHi: "गंभीर", color: "#7e0023", text: "#ffffff" };
 }
 
 export const FIRE_HOTSPOTS = [

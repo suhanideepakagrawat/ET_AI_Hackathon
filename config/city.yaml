@@ -1,0 +1,80 @@
+# =====================================================================
+# PS5 — Urban Air Quality Intelligence · CITY CONFIG (parameterised)
+# ---------------------------------------------------------------------
+# Single source of truth for the *city-specific* bits. Pointing the whole
+# system at a second city (Feature 5) is a change to THIS file, not code.
+# Owner: Bind (Features 4 & 5). Consumed by: advisory/, compare/, backend/.
+# =====================================================================
+
+active_city: delhi
+
+# CPCB National Air Quality Index bands (India, 0-500 scale).
+# range: [lower, upper] inclusive-lower. Used everywhere for health mapping.
+health_bands:
+  - key: good
+    label_en: "Good"
+    label_hi: "अच्छा"
+    range: [0, 50]
+    color: "#009966"
+    cpcb_health_note_en: "Minimal impact."
+    cpcb_health_note_hi: "बहुत कम प्रभाव।"
+  - key: satisfactory
+    label_en: "Satisfactory"
+    label_hi: "संतोषजनक"
+    range: [51, 100]
+    color: "#84cf33"
+    cpcb_health_note_en: "Minor breathing discomfort to sensitive people."
+    cpcb_health_note_hi: "संवेदनशील लोगों को हल्की साँस की तकलीफ़।"
+  - key: moderate
+    label_en: "Moderate"
+    label_hi: "मध्यम"
+    range: [101, 200]
+    color: "#ffde33"
+    cpcb_health_note_en: "Breathing discomfort to people with lung, asthma and heart diseases."
+    cpcb_health_note_hi: "फेफड़े, अस्थमा और हृदय रोग वाले लोगों को साँस लेने में तकलीफ़।"
+  - key: poor
+    label_en: "Poor"
+    label_hi: "ख़राब"
+    range: [201, 300]
+    color: "#ff9933"
+    cpcb_health_note_en: "Breathing discomfort to most people on prolonged exposure."
+    cpcb_health_note_hi: "लंबे समय तक रहने पर अधिकांश लोगों को साँस की तकलीफ़।"
+  - key: very_poor
+    label_en: "Very Poor"
+    label_hi: "बहुत ख़राब"
+    range: [301, 400]
+    color: "#cc0033"
+    cpcb_health_note_en: "Respiratory illness on prolonged exposure."
+    cpcb_health_note_hi: "लंबे समय तक रहने पर श्वसन संबंधी बीमारी।"
+  - key: severe
+    label_en: "Severe"
+    label_hi: "गंभीर"
+    range: [401, 999]
+    color: "#7e0023"
+    cpcb_health_note_en: "Affects healthy people and seriously impacts those with existing diseases."
+    cpcb_health_note_hi: "स्वस्थ लोगों को भी प्रभावित करता है और बीमार लोगों पर गंभीर असर।"
+
+# Languages the citizen advisory can speak. First is the default.
+languages:
+  - code: en
+    label: "English"
+  - code: hi
+    label: "हिन्दी (Hindi)"
+
+# -------- City registry (Feature 5: multi-city, parameterised) --------
+# Delhi is built deep; the others prove the "one config = a new city" story.
+cities:
+  delhi:
+    name: "Delhi"
+    default_language: hi
+    bbox: [76.84, 28.40, 77.35, 28.88]   # lon_min, lat_min, lon_max, lat_max
+    center: [28.6139, 77.2090]
+    data_file: "data/source_attribution.csv"     # real (if present) else mock
+    mock_file: "data/mock/delhi_wards_forecast.json"
+  mumbai:
+    name: "Mumbai"
+    default_language: en
+    bbox: [72.77, 18.89, 72.99, 19.27]
+    center: [19.0760, 72.8777]
+    data_file: "data/mumbai_source_attribution.csv"
+    mock_file: "data/mock/mumbai_wards_forecast.json"

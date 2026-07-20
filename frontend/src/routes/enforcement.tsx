@@ -34,7 +34,7 @@ function Enforcement() {
           <div className="border-b border-border p-5">
             <div className="chip mb-3">Enforcement queue</div>
             <h1 className="font-display text-xl">Priority actions · today</h1>
-            <p className="mono mt-1 text-[11px] uppercase tracking-wider text-text-mute">
+            <p className="mono mt-1 text-[11px] text-text-mute">
               {sorted.length} targets · ranked by fused priority score
             </p>
           </div>
@@ -55,7 +55,7 @@ function Enforcement() {
                       </span>
                       <span className="mono text-xs text-accent">P{t.priority}</span>
                     </div>
-                    <div className="mono mt-1 flex gap-3 text-[10px] uppercase tracking-wider text-text-mute">
+                    <div className="mono mt-1 flex gap-3 text-[11px] text-text-mute">
                       <span>{t.type}</span>
                       <span>·</span>
                       <span>{t.ward}</span>

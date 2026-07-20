@@ -1,0 +1,33 @@
+# One-click deploy of the Citizen Advisory API + demo UI to Render.
+# The service serves BOTH the JSON API and the chat UI at "/".
+#
+# Deploy:
+#   1. Push this repo to GitHub.
+#   2. Render dashboard -> New -> Blueprint -> pick this repo.
+#   3. Add the GROQ_API_KEY env var in the dashboard (leave blank to run the
+#      deterministic template mode — the demo still works).
+services:
+  - type: web
+    name: vayumitra-advisory
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-advisory.txt
+    startCommand: uvicorn backend.advisory_api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false                       # set in the Render dashboard, never in git
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: GROQ_FAST_MODEL
+        value: llama-3.1-8b-instant
+      # Voice (optional) — set for a neural voice; omit to use the browser voice.
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVEN_VOICE_ID
+        value: EXAVITQu4vr4xnSDxMaL
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: DEEPGRAM_TTS_MODEL
+        value: aura-2-athena-en
+      - key: PYTHON_VERSION
+        value: "3.13"

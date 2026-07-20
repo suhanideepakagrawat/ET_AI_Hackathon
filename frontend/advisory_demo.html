@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VayuMitra · Citizen Air-Quality Advisory</title>
+<style>
+  /* Design system: "The Public Health Bulletin" — see /DESIGN.md.
+     Cool neutral field, one deep-teal voice, CPCB bands as the only saturated
+     color. Flat by default; depth only as a response to state. */
+  :root{
+    --teal:#075e54; --teal-active:#0a746a; --teal-pressed:#064a42;
+    --ink:#0e1a1c; --muted:#47585c;
+    --surface:#f2f5f5; --panel:#ffffff; --panel2:#e9eeee; --line:#d6dedd;
+    --bubble-out:#dbeeeb;
+    --good:#009966; --sat:#84cf33; --mod:#ffde33; --poor:#ff9933;
+    --vpoor:#cc0033; --sev:#7e0023;
+    --alert:#b3261e; --alert-bg:#fdecec; --ok-bg:#eef6f3; --ok-ink:#0a5a4a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+       background:var(--panel2);color:var(--ink);font-size:14px;line-height:1.5}
+  button{font-family:inherit}
+  :focus-visible{outline:2px solid var(--teal-active);outline-offset:2px}
+
+  .app{max-width:470px;margin:0 auto;height:100vh;height:100dvh;display:flex;
+       flex-direction:column;background:var(--surface);position:relative;
+       border-left:1px solid var(--line);border-right:1px solid var(--line)}
+
+  /* Header — flat teal app bar (the single brand voice) */
+  header{background:var(--teal);color:#fff;padding:10px 14px;
+         display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .mark{width:38px;height:38px;border-radius:8px;background:rgba(255,255,255,.14);
+        display:grid;place-items:center;flex-shrink:0}
+  .htext{flex:1;min-width:0}
+  .htext b{font-size:16px;display:block;line-height:1.15}
+  .htext span{font-size:11px;opacity:.85;display:flex;align-items:center;gap:5px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--sat);display:inline-block}
+  .hbtn{background:rgba(255,255,255,.14);border:1px solid transparent;color:#fff;
+        border-radius:999px;padding:6px 11px;font-size:12.5px;font-weight:600;
+        cursor:pointer;display:flex;gap:5px;align-items:center}
+  .hbtn[aria-pressed="true"]{background:#fff;color:var(--teal)}
+  .langtog{display:flex;background:rgba(255,255,255,.14);border-radius:999px;
+           overflow:hidden;font-size:12.5px;font-weight:700}
+  .langtog button{background:none;border:0;color:#fff;padding:6px 11px;cursor:pointer}
+  .langtog button[aria-pressed="true"]{background:#fff;color:var(--teal)}
+
+  /* Tabs */
+  .tabs{display:flex;background:var(--teal);flex-shrink:0;padding:0 6px}
+  .tabs button{flex:1;background:none;border:0;color:rgba(255,255,255,.75);
+    padding:10px;font-size:12.5px;font-weight:600;cursor:pointer;
+    border-bottom:3px solid transparent}
+  .tabs button[aria-selected="true"]{color:#fff;border-bottom-color:#fff}
+
+  /* Chat */
+  .chat{flex:1;overflow-y:auto;padding:14px 12px 6px;display:flex;
+        flex-direction:column;gap:8px;scroll-behavior:smooth}
+  .row{display:flex;gap:7px;align-items:flex-end;max-width:100%}
+  .row.out{justify-content:flex-end}
+  .bubav{width:26px;height:26px;border-radius:8px;background:var(--teal);
+         display:grid;place-items:center;flex-shrink:0;margin-bottom:2px}
+  .msg{max-width:82%;padding:9px 12px;border-radius:11px;font-size:14px;
+    line-height:1.45;white-space:pre-wrap;word-wrap:break-word;animation:pop .18s ease}
+  .msg.in{background:var(--panel);border:1px solid var(--line);border-top-left-radius:3px}
+  .msg.out{background:var(--bubble-out);border-top-right-radius:3px}
+  .msg .time{font-size:11px;color:var(--muted);float:right;margin:6px -2px -3px 8px}
+  .msg b.h{display:block;margin-bottom:3px}
+  .feat{margin:5px 0 0;padding:0;list-style:none;font-size:14px}
+  .feat li{padding:2px 0;display:flex;gap:7px}
+  .typing{display:flex;gap:4px;padding:11px 13px;background:var(--panel);
+    border:1px solid var(--line);border-radius:11px;width:56px}
+  .typing i{width:6px;height:6px;background:var(--muted);border-radius:50%;animation:bl 1.2s infinite}
+  .typing i:nth-child(2){animation-delay:.2s}.typing i:nth-child(3){animation-delay:.4s}
+
+  /* Chips — quiet outline pills; teal fill when active */
+  .chips{display:flex;flex-wrap:wrap;gap:6px;padding:2px 4px 4px 35px}
+  .chip{background:var(--panel);border:1.4px solid var(--teal-active);
+    color:var(--teal-active);border-radius:999px;padding:7px 13px;font-size:12.5px;
+    cursor:pointer;font-weight:600;display:flex;gap:6px;align-items:center;
+    transition:background .15s,color .15s;white-space:nowrap}
+  .chip:hover{background:var(--teal);border-color:var(--teal);color:#fff}
+  .chip .b{font-size:11px;border-radius:8px;padding:1px 7px;font-weight:700}
+
+  /* Advisory card — flat panel, full hairline, AQI indicator carries severity */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    align-self:stretch;overflow:hidden;animation:pop .2s ease}
+  .card .top{display:flex;align-items:center;gap:11px;padding:12px 12px 8px}
+  .aqiball{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
+    flex-shrink:0;line-height:1;text-align:center}
+  .aqiball b{font-size:20px;font-variant-numeric:tabular-nums}
+  .aqiball small{font-size:11px;opacity:.85;display:block}
+  .card .meta{flex:1;min-width:0}
+  .card .meta>b{font-size:16px}
+  .card .meta .l2{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .badge{display:inline-block;padding:2px 9px;border-radius:8px;font-size:12.5px;font-weight:700}
+  .card .body{padding:2px 12px 10px;font-size:14px;line-height:1.5}
+  .acts{display:flex;flex-wrap:wrap;gap:5px;padding:0 12px 10px}
+  .act{font-size:12.5px;background:var(--ok-bg);color:var(--ok-ink);border-radius:8px;
+       padding:3px 9px;font-weight:600}
+  .act.warn{background:var(--alert-bg);color:var(--alert)}
+  .listen{display:flex;gap:8px;padding:0 12px 11px}
+  .listen button{display:inline-flex;align-items:center;gap:7px;border:0;
+    background:var(--teal);color:#fff;border-radius:999px;padding:8px 15px;
+    font-size:12.5px;font-weight:600;cursor:pointer}
+  .listen button:hover{background:var(--teal-pressed)}
+  .src{margin:0 12px 12px;font-size:11px}
+  .srcbtn{display:flex;align-items:center;gap:6px;width:100%;text-align:left;
+    background:none;border:0;padding:6px 0;color:var(--teal-active);font-weight:700;
+    font-size:11px;cursor:pointer}
+  .srcbtn .car{transition:transform .15s;display:inline-block}
+  .src.open .srcbtn .car{transform:rotate(180deg)}
+  .src .list{display:none;border-top:1px solid var(--line);padding-top:7px;margin-top:2px}
+  .src.open .list{display:block}
+  .src .list a{display:block;color:var(--teal-active);text-decoration:none;padding:4px 0;
+    border-bottom:1px dashed var(--line)}
+  .src .list a small{color:var(--muted);display:block;font-weight:400}
+
+  /* Per-message speak button */
+  .spk{display:inline-grid;place-items:center;width:26px;height:26px;margin-left:7px;
+    border:1px solid var(--line);border-radius:50%;background:var(--panel);
+    color:var(--teal-active);cursor:pointer;vertical-align:middle}
+  .spk:hover{background:var(--panel2)}
+
+  /* Voice bar — floating state overlay (earns its shadow) */
+  .voicebar{display:none;align-items:center;gap:9px;background:var(--panel);
+    border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(9,20,28,.07);
+    color:var(--ink);padding:8px 12px;font-size:12.5px;flex-shrink:0}
+  .voicebar.on{display:flex}
+  .eq{display:flex;gap:2px;align-items:flex-end;height:14px}
+  .eq i{width:3px;background:var(--teal-active);animation:eq .8s infinite}
+  .eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}.eq i:nth-child(4){animation-delay:.1s}
+  .voicebar.paused .eq i{animation-play-state:paused}
+  .vbtn{background:var(--panel);border:1px solid var(--line);
+    color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer;
+    font-size:12.5px;font-weight:600}
+  .vbtn:first-of-type{margin-left:auto}
+  .vbtn:hover{background:var(--panel2)}
+
+  /* Input bar */
+  .inputbar{display:flex;gap:7px;padding:9px 10px;background:var(--panel);
+    border-top:1px solid var(--line);flex-shrink:0;align-items:center}
+  .inputbar input{flex:1;padding:11px 15px;border:1px solid var(--line);
+    border-radius:999px;font-size:14px;outline:none;background:var(--panel);color:var(--ink)}
+  .inputbar input::placeholder{color:var(--muted)}
+  .inputbar input:focus{border-color:var(--teal-active);
+    box-shadow:0 0 0 2px rgba(10,116,106,.25)}
+  .iconbtn{width:45px;height:45px;border-radius:50%;border:0;background:var(--teal);
+    color:#fff;cursor:pointer;flex-shrink:0;display:grid;place-items:center;
+    transition:background .15s}
+  .iconbtn:hover{background:var(--teal-pressed)}
+  .iconbtn.rec{background:var(--vpoor);animation:pulse 1s infinite}
+
+  /* Compare tab */
+  .compare{flex:1;overflow-y:auto;padding:14px;display:none;flex-direction:column;
+    gap:14px;background:var(--surface)}
+  .compare.on{display:flex}.chatwrap.off{display:none}
+  .ccard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .ccard h3{margin:0 0 2px;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+  .ccard .sub{font-size:11px;color:var(--muted);margin-bottom:10px}
+  .bar{height:24px;border-radius:8px;display:flex;overflow:hidden;font-size:11px;border:1px solid var(--line)}
+  .bar span{display:grid;place-items:center;min-width:0;font-weight:700}
+  .kv{display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0;border-top:1px solid var(--panel2)}
+  .interv{margin-top:10px;background:var(--ok-bg);border-radius:8px;padding:10px;font-size:12.5px}
+  .interv b{color:var(--ok-ink)}
+  .cnote{font-size:11px;color:var(--muted);text-align:center;padding:4px 14px 14px}
+
+  @keyframes pop{from{opacity:1;transform:translateY(5px)}to{opacity:1;transform:none}}
+  @keyframes bl{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  @keyframes eq{0%,100%{height:4px}50%{height:14px}}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+  @media (prefers-reduced-motion: reduce){
+    .msg,.card{animation:none}
+    .iconbtn.rec{animation:none}
+    .eq i{animation:none;height:8px}
+    .typing i{animation:none;opacity:.6}
+    .chat{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="mark" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M3 8h9a3 3 0 1 0-3-3M3 12h14a3 3 0 1 1-3 3M3 16h7a2.5 2.5 0 1 1-2.5 2.5"/></svg>
+    </div>
+    <div class="htext">
+      <b>VayuMitra</b>
+      <span id="status"><i class="dot" aria-hidden="true"></i> Citizen Air-Quality Advisory · Delhi</span>
+    </div>
+    <button class="hbtn" id="spkBtn" onclick="toggleAutoplay()" aria-pressed="false"
+            aria-label="Speak replies aloud automatically" title="Speak replies aloud automatically">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      <span>Voice</span>
+    </button>
+    <div class="langtog" role="group" aria-label="Language">
+      <button id="lang-en" aria-pressed="true" onclick="setLang('en')">EN</button>
+      <button id="lang-hi" aria-pressed="false" onclick="setLang('hi')" lang="hi">हिं</button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button id="tab-chat" role="tab" aria-selected="true" onclick="showTab('chat')">Assistant</button>
+    <button id="tab-compare" role="tab" aria-selected="false" onclick="showTab('compare')">Compare cities</button>
+  </div>
+
+  <!-- CHAT TAB -->
+  <div class="chatwrap" id="chatwrap" style="flex:1;display:flex;flex-direction:column;min-height:0">
+    <div class="chat" id="chat" aria-live="polite"></div>
+
+    <div class="voicebar" id="voicebar">
+      <div class="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <span id="voiceLabel">Speaking…</span>
+      <button class="vbtn" id="pauseBtn" onclick="pauseResume()">Pause</button>
+      <button class="vbtn" onclick="stopSpeak()">Stop</button>
+    </div>
+
+    <div class="inputbar">
+      <label for="msg" style="position:absolute;left:-9999px">Ask about the air</label>
+      <input id="msg" placeholder="Ask about the air…" onkeydown="if(event.key==='Enter')onSend()" autocomplete="off" />
+      <button class="iconbtn" id="micBtn" onclick="toggleMic()" aria-label="Ask by voice" title="Ask by voice">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      </button>
+      <button class="iconbtn" onclick="onSend()" aria-label="Send message" title="Send message">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- COMPARE TAB -->
+  <div class="compare" id="compare" role="tabpanel"></div>
+</div>
+
+<script>
+const API = (location.protocol === 'file:') ? 'http://localhost:8000' : '';
+let LANG='en', CITY='delhi', WARD=null, PERSONA=null, META=null, WARDS=[], HISTORY=[];
+let convState='boot', autoplay=false;
+
+const T = {
+  en:{status:c=>`Citizen Air-Quality Advisory · ${c}`, ask:'Ask about the air…',
+    greet:"Namaste 🙏 I'm **VayuMitra**, your personal air-quality assistant.",
+    canDo:"Here's how I can help:",
+    askArea:"First — which area are you in? Tap one below, or just type your area name.",
+    otherArea:"Other area…",
+    askPersona:name=>`Got it — **${name}**. And who is this advice for?`,
+    changedArea:name=>`Switched to **${name}**.`,
+    askPersonaFirst:"Who is this advice for? Tap one, or tell me (e.g. \"for my child\").",
+    ready:"Ask me anything, or tap a suggestion below.",
+    followups:['Tomorrow?','Wear a mask?','Safe to exercise?','Change area','Change person','Sources'],
+    srcHead:"The authentic sources I base advice on:",
+    reask:"I didn't catch that area — please tap one below.",
+    listen:"Listen", err:"We can't reach the advisory service right now — please try again in a moment.",
+    langNote:"I'll continue in English."},
+  hi:{status:c=>`नागरिक वायु सलाह · ${c}`, ask:'हवा के बारे में पूछें…',
+    greet:"नमस्ते 🙏 मैं **वायुमित्र** हूँ, आपका निजी वायु-गुणवत्ता सहायक।",
+    canDo:"मैं इस तरह मदद कर सकता हूँ:",
+    askArea:"सबसे पहले — आप किस क्षेत्र में हैं? नीचे से चुनें या अपना क्षेत्र टाइप करें।",
+    otherArea:"अन्य क्षेत्र…",
+    askPersona:name=>`ठीक है — **${name}**। यह सलाह किसके लिए है?`,
+    changedArea:name=>`**${name}** पर बदल दिया।`,
+    askPersonaFirst:"यह सलाह किसके लिए है? चुनें या बताएँ (जैसे \"मेरे बच्चे के लिए\")।",
+    ready:"कुछ भी पूछें, या नीचे सुझाव दबाएँ।",
+    followups:['कल?','मास्क?','व्यायाम ठीक?','क्षेत्र बदलें','व्यक्ति बदलें','स्रोत'],
+    srcHead:"जिन प्रामाणिक स्रोतों पर सलाह आधारित है:",
+    reask:"वह क्षेत्र समझ नहीं आया — कृपया नीचे से चुनें।",
+    listen:"सुनें", err:"अभी सेवा से संपर्क नहीं हो पा रहा — कृपया थोड़ी देर में फिर कोशिश करें।",
+    langNote:"अब मैं हिन्दी में बात करूँगा। 🙏"},
+};
+// CPCB National AQI — exact standard hexes. Text per the Legible Band Rule:
+// ink on Good/Satisfactory/Moderate/Poor, white only on Very Poor/Severe.
+const BANDCOLOR={good:'#009966',satisfactory:'#84cf33',moderate:'#ffde33',
+  poor:'#ff9933',very_poor:'#cc0033',severe:'#7e0023'};
+const BANDTEXT={good:'#0e1a1c',satisfactory:'#0e1a1c',moderate:'#0e1a1c',
+  poor:'#0e1a1c',very_poor:'#ffffff',severe:'#ffffff'};
+function bandText(key){return BANDTEXT[key]||'#0e1a1c';}
+function colorText(hex){
+  const k=Object.keys(BANDCOLOR).find(k=>BANDCOLOR[k].toLowerCase()===String(hex).toLowerCase());
+  return k?BANDTEXT[k]:'#0e1a1c';
+}
+const PKEYS={child:['child','kid','bachcha','बच्च','school','beta'],elderly:['elder','old','senior','budhe','बुज़ुर्ग','बूढ़'],
+  respiratory:['asthma','अस्थमा','दमा','saans','साँस','heart','lung','copd'],outdoor_worker:['worker','मज़दूर','labour','labor','delivery','vendor'],
+  pregnant:['pregnan','गर्भ']};
+
+const SPK_SVG='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5zM15.5 8.5a5 5 0 0 1 0 7"/></svg>';
+const BOT_SVG='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 8h9a3 3 0 1 0-3-3M3 12h14a3 3 0 1 1-3 3M3 16h7a2.5 2.5 0 1 1-2.5 2.5"/></svg>';
+
+function now(){const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function esc(s){return(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function md(s){return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');}
+const chat=()=>document.getElementById('chat');
+function scroll(){chat().scrollTop=chat().scrollHeight;}
+
+/* ---------- rendering ---------- */
+function addUser(text){
+  const r=document.createElement('div');r.className='row out';
+  r.innerHTML=`<div class="msg out">${esc(text)}<span class="time">${now()}</span></div>`;
+  chat().appendChild(r);scroll();
+}
+function spkBtnHtml(text){
+  return `<button class="spk" data-s="${esc(text)}" onclick="speak(this.dataset.s)" aria-label="${LANG==='hi'?'सुनें':'Listen to this message'}">${SPK_SVG}</button>`;
+}
+function addBot(html,{chips,speakText,raw}={}){
+  const r=document.createElement('div');r.className='row';
+  const spk=speakText?spkBtnHtml(speakText):'';
+  const inner=raw?html:`<div class="msg in">${esc(html)}${spk}<span class="time">${now()}</span></div>`;
+  r.innerHTML=`<div class="bubav" aria-hidden="true">${BOT_SVG}</div>${inner}`;
+  chat().appendChild(r);
+  if(chips&&chips.length){
+    const c=document.createElement('div');c.className='chips';
+    chips.forEach(ch=>{const b=document.createElement('button');b.className='chip';b.innerHTML=ch.html||esc(ch.label);
+      b.onclick=()=>ch.act();c.appendChild(b);});
+    chat().appendChild(c);
+  }
+  scroll();
+  if(speakText&&autoplay)speak(speakText);
+}
+let typingEl=null;
+function typing(on){
+  if(on&&!typingEl){typingEl=document.createElement('div');typingEl.className='row';
+    typingEl.innerHTML=`<div class="bubav" aria-hidden="true">${BOT_SVG}</div><div class="typing" role="status" aria-label="VayuMitra is typing"><i></i><i></i><i></i></div>`;
+    chat().appendChild(typingEl);scroll();}
+  else if(!on&&typingEl){typingEl.remove();typingEl=null;}
+}
+
+/* ---------- boot + flow ---------- */
+async function boot(){
+  try{ META=await(await fetch(API+'/meta')).json(); }
+  catch(e){ addBot(T[LANG].err); return; }
+  CITY=META.active_city||'delhi';
+  try{ await loadWards(); }catch(e){ addBot(T[LANG].err); return; }
+  greet();
+}
+async function loadWards(){
+  const d=await(await fetch(API+`/wards?city=${CITY}`)).json();
+  WARDS=d.wards||[];
+  document.getElementById('status').innerHTML=`<i class="dot" aria-hidden="true"></i> `+esc(T[LANG].status(cityName()));
+}
+function cityName(){return ((META&&META.cities)||[]).find(c=>c.key===CITY)?.name||CITY;}
+function greet(){
+  const t=T[LANG];
+  const feats=(META.features||[]).map(f=>`<li><span aria-hidden="true">${f.icon}</span> <span>${esc(LANG==='hi'?f.hi:f.en)}</span></li>`).join('');
+  addBot(`<div class="msg in"><b class="h">${md(t.greet)}</b>${esc(t.canDo)}<ul class="feat">${feats}</ul><span class="time">${now()}</span></div>`,{raw:true});
+  askArea();
+}
+function areaChips(){
+  const t=T[LANG];
+  const top=WARDS.slice(0,6).map(w=>({html:`${esc(w.name)} <span class="b" style="background:${w.color};color:${colorText(w.color)}">${w.aqi}</span>`,
+    act:()=>pickArea(w)}));
+  top.push({label:t.otherArea,act:()=>{document.getElementById('msg').focus();}});
+  return top;
+}
+function askArea(){convState='ask_area';
+  addBot(`<div class="msg in">${md(T[LANG].askArea)}<span class="time">${now()}</span></div>`,{raw:true});
+  const c=document.createElement('div');c.className='chips';
+  areaChips().forEach(ch=>{const b=document.createElement('button');b.className='chip';b.innerHTML=ch.html||esc(ch.label);b.onclick=()=>ch.act();c.appendChild(b);});
+  chat().appendChild(c);scroll();}
+function personaChips(){
+  return (META.personas||[]).map(p=>({html:`<span aria-hidden="true">${p.icon}</span> ${esc(LANG==='hi'?p.label_hi:p.label_en)}`,act:()=>pickPersona(p.key)}));
+}
+function askPersona(prefix){
+  convState='ask_persona';
+  addBot(`<div class="msg in">${md(prefix||T[LANG].askPersonaFirst)}<span class="time">${now()}</span></div>`,{raw:true,chips:personaChips()});
+}
+function pickArea(w){
+  WARD=w.zone_id;addUser(w.name);
+  addBot(`<div class="msg in">${md(T[LANG].askPersona(w.name))}<span class="time">${now()}</span></div>`,{raw:true,chips:personaChips()});
+  convState='ask_persona';
+}
+function pickPersona(key){
+  PERSONA=key;const p=(META.personas||[]).find(x=>x.key===key);
+  addUser(p?(LANG==='hi'?p.label_hi:p.label_en):key);
+  convState='ready';showAdvisory();
+}
+
+/* ---------- advisory + sources ---------- */
+async function showAdvisory(){
+  if(!WARD){askArea();return;}
+  typing(true);
+  let a;try{a=await(await fetch(`${API}/advisory?zone=${encodeURIComponent(WARD)}&persona=${PERSONA||'general'}&horizon=24&lang=${LANG}`)).json();}
+  catch(e){typing(false);addBot(T[LANG].err);return;}
+  typing(false);
+  renderCard(a);
+  warmTts(a.message);
+  addBot(`<div class="msg in">${md(T[LANG].ready)}<span class="time">${now()}</span></div>`,{raw:true,chips:followupChips()});
+}
+function renderCard(a){
+  const g=a.guidance,col=BANDCOLOR[a.band.key]||'#5c6b6f',txt=bandText(a.band.key);
+  const bl=LANG==='hi'?a.band.label_hi:a.band.label_en;
+  const AL=LANG==='hi'
+    ?{ok:'बाहर जाना ठीक',avoid:'बाहर न जाएँ',mask:'N95 मास्क पहनें',win:'खिड़कियाँ बंद रखें',meds:'दवा पास रखें'}
+    :{ok:'Outdoor OK',avoid:'Avoid outdoors',mask:'N95 mask',win:'Windows closed',meds:'Keep meds handy'};
+  const acts=[`<span class="act ${g.outdoor_ok?'':'warn'}">${g.outdoor_ok?AL.ok:AL.avoid}</span>`];
+  if(g.mask)acts.push(`<span class="act warn">${AL.mask}</span>`);
+  if(g.windows_closed)acts.push(`<span class="act warn">${AL.win}</span>`);
+  if(g.meds_handy)acts.push(`<span class="act warn">${AL.meds}</span>`);
+  if(a.grap_stage)acts.push(`<span class="act warn">GRAP ${esc(a.grap_stage)}</span>`);
+  const srcs=(a.sources||[]).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}<small>${esc(s.publisher)} · ${s.year}</small></a>`).join('');
+  const card=document.createElement('div');card.className='row';
+  card.innerHTML=`<div class="bubav" aria-hidden="true">${BOT_SVG}</div><div class="card">
+    <div class="top">
+      <div class="aqiball" style="background:${col};color:${txt}" role="img" aria-label="AQI ${a.aqi}, ${esc(a.band.label_en)}"><div><b>${a.aqi}</b><small>AQI</small></div></div>
+      <div class="meta"><b>${esc(a.zone_name)}</b>
+        <div class="l2"><span class="badge" style="background:${col};color:${txt}">${esc(bl)}</span> · ${LANG==='hi'?'अगले':'next'} ${a.horizon_hours}h · <span aria-hidden="true">${a.persona.icon}</span> ${esc(LANG==='hi'?a.persona.label_hi:a.persona.label_en)}</div>
+        <div class="l2">${esc(a.dominant_source||'')} ${a.dominant_source_pct?`(${a.dominant_source_pct}%)`:''} · ${Math.round((a.confidence||0)*100)}% ${LANG==='hi'?'विश्वास':'confidence'}</div>
+      </div>
+    </div>
+    <div class="body">${esc(a.message)}</div>
+    <div class="acts">${acts.join('')}</div>
+    <div class="listen"><button data-s="${esc(a.message)}" onclick="speak(this.dataset.s)">${SPK_SVG} ${esc(T[LANG].listen)}</button></div>
+    <div class="src">
+      <button class="srcbtn" aria-expanded="false">${esc(a.provenance)} <span class="car" aria-hidden="true">▾</span></button>
+      <div class="list">${srcs}</div>
+    </div>
+  </div>`;
+  const btn=card.querySelector('.srcbtn');
+  btn.addEventListener('click',()=>{const p=btn.parentElement;p.classList.toggle('open');btn.setAttribute('aria-expanded',p.classList.contains('open')?'true':'false');});
+  chat().appendChild(card);scroll();
+  if(autoplay)speak(a.message);
+}
+function followupChips(){
+  const f=T[LANG].followups;
+  return [
+    {label:f[0],act:()=>quickSend(f[0])},{label:f[1],act:()=>quickSend(f[1])},{label:f[2],act:()=>quickSend(f[2])},
+    {label:f[3],act:()=>askArea()},{label:f[4],act:()=>askPersona(T[LANG].askPersonaFirst)},{label:f[5],act:()=>showSources()},
+  ];
+}
+async function showSources(){
+  let d;try{d=await(await fetch(API+'/sources')).json();}catch(e){addBot(T[LANG].err);return;}
+  const list=d.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}<small>${esc(s.publisher)} · ${s.year} — ${esc(s.grounds)}</small></a>`).join('');
+  addBot(`<div class="msg in"><b class="h">${esc(T[LANG].srcHead)}</b><div class="src open"><div class="list">${list}</div></div><span class="time">${now()}</span></div>`,{raw:true});
+}
+
+/* ---------- input handling ---------- */
+function quickSend(t){document.getElementById('msg').value=t;onSend();}
+function onSend(){
+  const inp=document.getElementById('msg');const text=inp.value.trim();if(!text)return;
+  inp.value='';handleText(text);
+}
+function resolveArea(text){
+  const low=text.toLowerCase();
+  return WARDS.find(w=>low.includes(w.name.toLowerCase()))||
+    WARDS.find(w=>w.name.toLowerCase().replace('/',' ').split(' ').some(tok=>tok.length>4&&low.includes(tok)));
+}
+function resolvePersona(text){
+  const low=text.toLowerCase();
+  for(const[k,kws]of Object.entries(PKEYS))if(kws.some(w=>low.includes(w)))return k;
+  return null;
+}
+function localIntent(low){
+  if(/\b(menu|options|मेन्यू)\b/.test(low))return 'menu';
+  if(/(change|switch|different|another|बदल).*(area|zone|place|क्षेत्र|जगह)|(area|क्षेत्र).*(change|बदल)/.test(low))return 'area';
+  if(/(change|different|बदल).*(person|persona|someone|व्यक्ति)|for (my|a) /.test(low))return 'person';
+  if(/(source|reference|proof|कहाँ से|कहां से|स्रोत|प्रमाण)/.test(low))return 'sources';
+  if(/(what can you|features|help|kya kar|क्या कर|सुविध|मदद)/.test(low))return 'features';
+  if(/(compare|other cit|dusre|दूसरे शहर|तुलना)/.test(low))return 'compare';
+  return null;
+}
+async function handleText(text){
+  addUser(text);
+  const low=text.toLowerCase();
+  const intent=localIntent(low);
+  if(intent==='area'){askArea();return;}
+  if(intent==='person'){askPersona(T[LANG].askPersonaFirst);return;}
+  if(intent==='sources'){showSources();return;}
+  if(intent==='features'){greetFeaturesOnly();return;}
+  if(intent==='compare'){showTab('compare');return;}
+  if(intent==='menu'){askArea();return;}
+
+  if(convState==='ask_area'){
+    const w=resolveArea(text);
+    if(w){pickArea(w);}else{addBot(`<div class="msg in">${esc(T[LANG].reask)}<span class="time">${now()}</span></div>`,{raw:true});askArea();}
+    return;
+  }
+  if(convState==='ask_persona'){
+    const pk=resolvePersona(text);PERSONA=pk||'general';
+    convState='ready';showAdvisory();return;
+  }
+  const w=resolveArea(text);if(w)WARD=w.zone_id;
+  const pk=resolvePersona(text);if(pk)PERSONA=pk;
+  if(!WARD){askArea();return;}
+  sendChat(text);
+}
+async function sendChat(text){
+  typing(true);
+  try{
+    const r=await(await fetch(API+'/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({zone:WARD,message:text,persona:PERSONA,lang:LANG,horizon:'24',history:HISTORY.slice(-6),city:CITY})})).json();
+    typing(false);
+    if(r.zone_switched){WARD=r.zone_id;addBot(`<div class="msg in">${md(T[LANG].changedArea(r.zone_name))}<span class="time">${now()}</span></div>`,{raw:true});}
+    const srcTag=r.provenance?`<div class="src"><button class="srcbtn" aria-expanded="false">${esc(r.provenance)} <span class="car" aria-hidden="true">▾</span></button><div class="list">${(r.sources||[]).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}<small>${esc(s.publisher)} · ${s.year}</small></a>`).join('')}</div></div>`:'';
+    const r2=document.createElement('div');r2.className='row';
+    r2.innerHTML=`<div class="bubav" aria-hidden="true">${BOT_SVG}</div><div class="msg in">${esc(r.reply)}${spkBtnHtml(r.reply)}${srcTag}<span class="time">${now()}</span></div>`;
+    const sb=r2.querySelector('.srcbtn');
+    if(sb)sb.addEventListener('click',()=>{const p=sb.parentElement;p.classList.toggle('open');sb.setAttribute('aria-expanded',p.classList.contains('open')?'true':'false');});
+    chat().appendChild(r2);scroll();
+    HISTORY.push({role:'user',content:text},{role:'assistant',content:r.reply_en||r.reply});
+    warmTts(r.reply);
+    if(autoplay)speak(r.reply);
+    const c=document.createElement('div');c.className='chips';
+    followupChips().forEach(ch=>{const b=document.createElement('button');b.className='chip';b.textContent=ch.label;b.onclick=()=>ch.act();c.appendChild(b);});
+    chat().appendChild(c);scroll();
+  }catch(e){typing(false);addBot(T[LANG].err);}
+}
+function greetFeaturesOnly(){
+  const feats=(META.features||[]).map(f=>`<li><span aria-hidden="true">${f.icon}</span> <span>${esc(LANG==='hi'?f.hi:f.en)}</span></li>`).join('');
+  addBot(`<div class="msg in"><b class="h">${esc(T[LANG].canDo)}</b><ul class="feat">${feats}</ul><span class="time">${now()}</span></div>`,{raw:true,chips:followupChips()});
+}
+
+/* ---------- voice ----------
+   Server neural voice (streams; playback starts on first bytes) with browser
+   speech fallback. Pause/resume/stop work for both. Never hangs: 6s bail. */
+let voices=[],speaking=false,paused=false,voiceMode='synth',currentAudio=null;
+function loadVoices(){voices=window.speechSynthesis?speechSynthesis.getVoices():[];}
+if(window.speechSynthesis){loadVoices();speechSynthesis.onvoiceschanged=loadVoices;}
+function pickVoice(lang){
+  const pref=lang==='hi'?'hi':'en';
+  const score=v=>{let s=0;const n=v.name.toLowerCase();
+    if(v.lang.toLowerCase().startsWith(pref))s+=10;
+    if(/natural|neural|online/.test(n))s+=6;
+    if(/google/.test(n))s+=3;
+    if(pref==='hi'&&/swara|hemant|madhur|हि/.test(n))s+=4;
+    if(pref==='en'&&/india|ravi|neerja|aria|jenny/.test(n))s+=2;
+    return s;};
+  return voices.slice().sort((a,b)=>score(b)-score(a))[0];
+}
+function ttsUrl(text){return `${API}/tts?lang=${LANG}&text=${encodeURIComponent(text.slice(0,800))}`;}
+function warmTts(text){
+  if(META&&META.voice_available&&LANG==='en'&&text)fetch(ttsUrl(text)).catch(()=>{});
+}
+function speak(text){
+  if(!text)return;stopSpeak();
+  if(META&&META.voice_available){
+    voiceMode='audio';showVoiceBar(true,'load');
+    const a=new Audio(ttsUrl(text));a.preload='auto';currentAudio=a;
+    let started=false;
+    const bail=setTimeout(()=>{if(!started&&currentAudio===a){a.src='';currentAudio=null;browserSpeak(text);}},6000);
+    a.onplaying=()=>{started=true;clearTimeout(bail);speaking=true;paused=false;showVoiceBar(true,'speak');};
+    a.onended=()=>{clearTimeout(bail);speaking=false;if(currentAudio===a)currentAudio=null;showVoiceBar(false);};
+    a.onerror=()=>{clearTimeout(bail);if(currentAudio===a){currentAudio=null;browserSpeak(text);}};
+    a.play().catch(()=>{clearTimeout(bail);if(currentAudio===a){currentAudio=null;browserSpeak(text);}});
+  }else{ browserSpeak(text); }
+}
+function browserSpeak(text){
+  if(!window.speechSynthesis)return;
+  voiceMode='synth';speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  const v=pickVoice(LANG);if(v){u.voice=v;u.lang=v.lang;}else{u.lang=LANG==='hi'?'hi-IN':'en-IN';}
+  u.rate=0.97;u.pitch=1.06;
+  u.onstart=()=>{speaking=true;paused=false;showVoiceBar(true,'speak');};
+  u.onend=()=>{speaking=false;showVoiceBar(false);};
+  u.onerror=()=>{speaking=false;showVoiceBar(false);};
+  speechSynthesis.speak(u);
+}
+function showVoiceBar(on,state){const b=document.getElementById('voicebar');b.classList.toggle('on',on);
+  if(on){const L=document.getElementById('voiceLabel');
+    L.textContent=state==='load'?(LANG==='hi'?'आवाज़ लोड हो रही…':'Loading voice…'):(LANG==='hi'?'बोल रहा हूँ…':'Speaking…');
+    b.classList.remove('paused');document.getElementById('pauseBtn').textContent=LANG==='hi'?'रोकें':'Pause';}}
+function setPaused(p){paused=p;const bar=document.getElementById('voicebar');bar.classList.toggle('paused',p);
+  document.getElementById('pauseBtn').textContent=p?(LANG==='hi'?'जारी रखें':'Resume'):(LANG==='hi'?'रोकें':'Pause');
+  document.getElementById('voiceLabel').textContent=p?(LANG==='hi'?'रुका हुआ':'Paused'):(LANG==='hi'?'बोल रहा हूँ…':'Speaking…');}
+function pauseResume(){
+  if(voiceMode==='audio'&&currentAudio){
+    if(currentAudio.paused){currentAudio.play();setPaused(false);}else{currentAudio.pause();setPaused(true);}
+  }else if(window.speechSynthesis){
+    if(paused){speechSynthesis.resume();setPaused(false);}else{speechSynthesis.pause();setPaused(true);}
+  }}
+function stopSpeak(){
+  if(currentAudio){currentAudio.pause();currentAudio=null;}
+  if(window.speechSynthesis)speechSynthesis.cancel();
+  speaking=false;paused=false;showVoiceBar(false);}
+function toggleAutoplay(){autoplay=!autoplay;
+  document.getElementById('spkBtn').setAttribute('aria-pressed',autoplay?'true':'false');
+  if(!autoplay)stopSpeak();}
+
+let recog=null,recognizing=false;
+function toggleMic(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){addBot(LANG==='hi'?'वॉइस इनपुट Chrome/Edge में काम करता है। आप टाइप भी कर सकते हैं।':'Voice input works in Chrome/Edge. You can still type.');return;}
+  if(recognizing){recog.stop();return;}
+  recog=new SR();recog.lang=LANG==='hi'?'hi-IN':'en-IN';recog.interimResults=false;
+  recog.onstart=()=>{recognizing=true;document.getElementById('micBtn').classList.add('rec');};
+  recog.onend=()=>{recognizing=false;document.getElementById('micBtn').classList.remove('rec');};
+  recog.onresult=e=>{const t=e.results[0][0].transcript;if(!autoplay)toggleAutoplay();handleText(t);};
+  recog.start();
+}
+
+/* ---------- language + tabs ---------- */
+function setLang(l){LANG=l;document.documentElement.lang=l;
+  document.getElementById('lang-en').setAttribute('aria-pressed',l==='en'?'true':'false');
+  document.getElementById('lang-hi').setAttribute('aria-pressed',l==='hi'?'true':'false');
+  document.getElementById('msg').placeholder=T[l].ask;
+  document.getElementById('status').innerHTML=`<i class="dot" aria-hidden="true"></i> `+esc(T[l].status(cityName()));
+  addBot(`<div class="msg in">${esc(T[l].langNote)}<span class="time">${now()}</span></div>`,{raw:true});
+  if(convState==='ready'&&WARD)showAdvisory();
+}
+function showTab(t){
+  document.getElementById('tab-chat').setAttribute('aria-selected',t==='chat'?'true':'false');
+  document.getElementById('tab-compare').setAttribute('aria-selected',t==='compare'?'true':'false');
+  document.getElementById('chatwrap').classList.toggle('off',t!=='chat');
+  document.getElementById('compare').classList.toggle('on',t==='compare');
+  if(t==='compare')renderCompare();
+}
+async function renderCompare(){
+  const box=document.getElementById('compare');box.innerHTML='<div class="cnote">Loading…</div>';
+  let d;try{d=await(await fetch(API+'/compare')).json();}catch(e){box.innerHTML=`<div class="cnote">${esc(T[LANG].err)}</div>`;return;}
+  box.innerHTML='';
+  d.cities.forEach(c=>{
+    const bars=Object.entries(c.band_distribution||{}).map(([k,v])=>`<span style="flex:${v};background:${BANDCOLOR[k]||'var(--muted)'};color:${bandText(k)}">${v}</span>`).join('');
+    const mix=c.source_mix||{},iv=c.intervention;
+    const avgKey=c.avg_aqi>400?'severe':c.avg_aqi>300?'very_poor':c.avg_aqi>200?'poor':c.avg_aqi>100?'moderate':c.avg_aqi>50?'satisfactory':'good';
+    const el=document.createElement('div');el.className='ccard';
+    el.innerHTML=`<h3>${esc(c.name)} <span class="badge" style="background:${BANDCOLOR[avgKey]};color:${bandText(avgKey)}">avg ${c.avg_aqi}</span></h3>
+      <div class="sub">${c.zones} zones · worst: ${esc(c.worst_zone.name)} (AQI ${c.worst_zone.aqi}) · ${esc(c.data_kind)} data</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Zones by CPCB band</div><div class="bar">${bars}</div>
+      <div class="kv"><span>Traffic</span><b>${mix.traffic||0}%</b></div>
+      <div class="kv"><span>Industry</span><b>${mix.industry||0}%</b></div>
+      <div class="kv"><span>Construction / dust</span><b>${mix.construction||0}%</b></div>
+      <div class="interv"><b>Modelled intervention:</b> avg AQI ${iv.avg_aqi_before} → <b>${iv.avg_aqi_after}</b> (−${iv.reduction_pct}%) if the top source is tackled.
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${esc(iv.note)}</div></div>`;
+    box.appendChild(el);
+  });
+  const n=document.createElement('div');n.className='cnote';n.textContent=d.note;box.appendChild(n);
+}
+
+boot();
+</script>
+</body>
+</html>
