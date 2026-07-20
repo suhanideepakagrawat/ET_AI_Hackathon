@@ -404,15 +404,23 @@ function pickVoice(lang){
     return s;};
   return voices.slice().sort((a,b)=>score(b)-score(a))[0];
 }
+function ttsUrl(text){return `${API}/tts?lang=${LANG}&text=${encodeURIComponent(text.slice(0,800))}`;}
+function warmTts(text){
+  // Fire-and-forget: warms the server+browser cache so "Listen" is instant.
+  if(META&&META.voice_available&&LANG==='en'&&text)fetch(ttsUrl(text)).catch(()=>{});
+}
 function speak(text){
   if(!text)return;stopSpeak();
-  if(META&&META.voice_available){        // server neural voice
+  if(META&&META.voice_available){        // server neural voice (streams; plays on first bytes)
     voiceMode='audio';showVoiceBar(true,'load');
-    currentAudio=new Audio(`${API}/tts?lang=${LANG}&text=${encodeURIComponent(text.slice(0,800))}`);
-    currentAudio.onplaying=()=>{speaking=true;paused=false;showVoiceBar(true,'speak');};
-    currentAudio.onended=()=>{speaking=false;currentAudio=null;showVoiceBar(false);};
-    currentAudio.onerror=()=>{currentAudio=null;browserSpeak(text);};  // 204 / fail -> browser
-    currentAudio.play().catch(()=>{currentAudio=null;browserSpeak(text);});
+    const a=new Audio(ttsUrl(text));a.preload='auto';currentAudio=a;
+    let started=false;
+    // Never hang on "loading": if audio hasn't started in 6s, use the browser voice.
+    const bail=setTimeout(()=>{if(!started&&currentAudio===a){a.src='';currentAudio=null;browserSpeak(text);}},6000);
+    a.onplaying=()=>{started=true;clearTimeout(bail);speaking=true;paused=false;showVoiceBar(true,'speak');};
+    a.onended=()=>{clearTimeout(bail);speaking=false;if(currentAudio===a)currentAudio=null;showVoiceBar(false);};
+    a.onerror=()=>{clearTimeout(bail);if(currentAudio===a){currentAudio=null;browserSpeak(text);}};  // 204 / fail -> browser
+    a.play().catch(()=>{clearTimeout(bail);if(currentAudio===a){currentAudio=null;browserSpeak(text);}});
   }else{ browserSpeak(text); }
 }
 function browserSpeak(text){

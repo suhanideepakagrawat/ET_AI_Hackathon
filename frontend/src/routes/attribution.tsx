@@ -35,7 +35,7 @@ function Attribution() {
   return (
     <AppShell>
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="chip mb-3">§ Attribution · city-wide</div>
+        <div className="chip mb-3">Attribution · city-wide</div>
         <h1 className="font-display text-3xl">Source contribution across the NCR grid</h1>
         <p className="mt-2 max-w-2xl text-sm text-text-dim">
           Aggregated share of forecast AQI by source over the current run. Numbers weighted
@@ -44,7 +44,7 @@ function Attribution() {
 
         <div className="mt-8 grid gap-6 md:grid-cols-[1fr_1fr]">
           <div className="panel p-6">
-            <div className="mono text-[10px] uppercase tracking-wider text-text-mute">Contribution mix</div>
+            <div className="mono text-[11px] text-text-mute">Contribution mix</div>
             <div className="mt-4 flex h-4 overflow-hidden border border-border">
               {shares.map((s) => (
                 <div key={s.k} style={{ width: `${s.pct * 100}%`, background: SOURCE_COLORS[s.k] }} title={`${SOURCE_LABELS[s.k]} · ${Math.round(s.pct * 100)}%`} />
@@ -64,15 +64,15 @@ function Attribution() {
           </div>
 
           <div className="panel p-6">
-            <div className="mono text-[10px] uppercase tracking-wider text-text-mute">24-hour source load · μg/m³ equiv</div>
+            <div className="mono text-[11px] text-text-mute">24-hour source load · μg/m³ equiv</div>
             <TrendChart series={series} />
           </div>
         </div>
 
         <div className="panel mt-6 p-6">
-          <div className="mono text-[10px] uppercase tracking-wider text-text-mute">Top cells by AQI · +24h</div>
+          <div className="mono text-[11px] text-text-mute">Top cells by AQI · +24h</div>
           <table className="mono mt-4 w-full text-sm">
-            <thead className="mono text-[10px] uppercase tracking-wider text-text-mute">
+            <thead className="mono text-[11px] text-text-mute">
               <tr className="border-b border-border">
                 <th className="py-2 text-left">Cell</th>
                 <th className="text-left">Ward</th>

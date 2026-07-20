@@ -23,7 +23,8 @@ if str(_REPO_ROOT) not in sys.path:
 
 from fastapi import APIRouter, FastAPI, HTTPException, Query  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
-from fastapi.responses import FileResponse, JSONResponse, Response  # noqa: E402
+from fastapi.responses import (FileResponse, JSONResponse, Response,  # noqa: E402
+                               StreamingResponse)
 from pydantic import BaseModel  # noqa: E402
 
 from advisory import advisory_engine, chat as chat_mod, llm, sources, tts  # noqa: E402
@@ -84,13 +85,21 @@ def health() -> dict:
 
 @router.get("/tts")
 def tts_endpoint(text: str = Query(...), lang: str = Query(default="en")) -> Response:
-    """Return MP3 audio for `text`, or 204 so the browser uses its own voice."""
-    out = tts.synthesize(text, lang)
-    if not out:
+    """MP3 audio for `text` — cached whole, or streamed as the provider produces
+    it (playback starts on first bytes). 204 → the browser uses its own voice."""
+    cached = tts.get_cached(text, lang)
+    if cached:
+        audio, mime, engine = cached
+        return Response(content=audio, media_type=mime,
+                        headers={"X-TTS-Engine": engine,
+                                 "Cache-Control": "public, max-age=86400"})
+    opened = tts.open_stream(text, lang)
+    if not opened:
         return Response(status_code=204)
-    audio, mime, engine = out
-    return Response(content=audio, media_type=mime,
-                    headers={"X-TTS-Engine": engine, "Cache-Control": "public, max-age=86400"})
+    gen, mime, engine = opened
+    return StreamingResponse(gen, media_type=mime,
+                             headers={"X-TTS-Engine": engine,
+                                      "Cache-Control": "public, max-age=86400"})
 
 
 @router.get("/meta")

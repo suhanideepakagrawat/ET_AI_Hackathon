@@ -80,7 +80,7 @@ export function MapView({
       >
         <defs>
           <pattern id="dotgrid" width="8" height="8" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.6" fill="rgba(174,234,233,0.06)" />
+            <circle cx="1" cy="1" r="0.6" fill="rgba(7,94,84,0.10)" />
           </pattern>
           <radialGradient id="fireGrad">
             <stop offset="0%" stopColor="var(--source-burning)" stopOpacity="0.9" />
@@ -115,7 +115,7 @@ export function MapView({
           className="mono"
           fill="var(--text-mute)"
           fontSize="9"
-          style={{ textTransform: "uppercase", letterSpacing: "0.12em" }}
+          
         >
           Regional transport zone ↑ · Delhi-NCR grid ↓
         </text>
@@ -310,7 +310,7 @@ export function MapView({
 
         {/* Compass / scale */}
         <g transform={`translate(${width - 90}, ${heightPx - 40})`}>
-          <text x="0" y="0" fontSize="9" fill="var(--text-mute)" className="mono" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
+          <text x="0" y="0" fontSize="9" fill="var(--text-mute)" className="mono" >
             1 km
           </text>
           <line x1="0" y1="8" x2="32" y2="8" stroke="var(--accent-dim)" strokeWidth="1" />

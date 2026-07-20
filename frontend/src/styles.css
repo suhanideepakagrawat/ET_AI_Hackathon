@@ -5,35 +5,37 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Delhi-NCR Air Intelligence Platform
- * Locked palette per brief — extend only with tints/opacity.
+ * PS5 Urban Air Quality Intelligence — operator dashboard
+ * Design system: "The Public Health Bulletin" (see /DESIGN.md).
+ * Cool neutral field, one deep-teal action voice, CPCB bands as the only
+ * saturated colors. Flat by default; depth only as a response to state.
  */
 
 @theme inline {
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 6px;
-  --radius-xl: 8px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
 
   --color-background: var(--bg-primary);
   --color-foreground: var(--text);
-  --color-card: var(--bg-primary);
+  --color-card: var(--panel);
   --color-card-foreground: var(--text);
-  --color-popover: var(--bg-secondary);
+  --color-popover: var(--panel);
   --color-popover-foreground: var(--text);
   --color-primary: var(--accent);
-  --color-primary-foreground: var(--bg-primary);
+  --color-primary-foreground: #ffffff;
   --color-secondary: var(--surface-1);
   --color-secondary-foreground: var(--text);
   --color-muted: var(--surface-1);
   --color-muted-foreground: var(--text-dim);
   --color-accent: var(--accent);
-  --color-accent-foreground: var(--bg-primary);
-  --color-destructive: var(--source-burning);
-  --color-destructive-foreground: var(--text);
+  --color-accent-foreground: #ffffff;
+  --color-destructive: var(--aqi-very-poor);
+  --color-destructive-foreground: #ffffff;
   --color-border: var(--border);
   --color-input: var(--border);
-  --color-ring: var(--accent);
+  --color-ring: var(--accent-dim);
 
   --color-bg-primary: var(--bg-primary);
   --color-bg-secondary: var(--bg-secondary);
@@ -43,36 +45,52 @@
   --color-text-mute: var(--text-mute);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
+  --color-panel: var(--panel);
 
   --color-source-traffic: var(--source-traffic);
   --color-source-industry: var(--source-industry);
   --color-source-construction: var(--source-construction);
   --color-source-burning: var(--source-burning);
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* One family (DESIGN.md One Family Rule): a system sans carries everything.
+     The old display/mono webfonts are gone — weight and size do the hierarchy. */
+  --font-sans: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 :root {
-  --radius: 4px;
-  --bg-primary: #010E13;
-  --bg-secondary: #000000;
-  --surface-1: #071820;
-  --surface-2: #0d2530;
-  --text: #FFFFFF;
-  --text-dim: rgba(255, 255, 255, 0.70);
-  --text-mute: rgba(255, 255, 255, 0.45);
-  --accent: #AEEAE9;
-  --accent-dim: #6FA5A4;
-  --accent-glow: rgba(174, 234, 233, 0.15);
-  --border: rgba(174, 234, 233, 0.12);
+  --radius: 8px;
 
-  /* Source categories — desaturated for dark base */
-  --source-traffic: #E5A552;       /* warm amber */
-  --source-industry: #8B7BB8;      /* muted violet */
-  --source-construction: #C97B4E;  /* dusty orange */
-  --source-burning: #D64545;       /* deeper red-orange */
+  /* Bulletin neutrals */
+  --bg-primary: #f2f5f5;       /* cool Surface */
+  --bg-secondary: #ffffff;     /* Panel — the raised reading layer */
+  --panel: #ffffff;
+  --surface-1: #e9eeee;        /* Panel-2 — control strips, quiet fills */
+  --surface-2: #dfe7e7;
+  --text: #0e1a1c;             /* Ink */
+  --text-dim: #47585c;         /* Muted Ink (≥4.5:1 on surface & panel) */
+  --text-mute: #5c6b6f;
+  --border: #d6dedd;           /* 1px hairline */
+
+  /* The single action voice */
+  --accent: #075e54;           /* Deep Civic Teal */
+  --accent-dim: #0a746a;       /* Active Teal — links, focus, selection */
+  --accent-glow: rgba(10, 116, 106, 0.14);
+
+  /* CPCB National AQI bands — a public standard, never recolored for taste */
+  --aqi-good: #009966;
+  --aqi-satisfactory: #84cf33;
+  --aqi-moderate: #ffde33;
+  --aqi-poor: #ff9933;
+  --aqi-very-poor: #cc0033;
+  --aqi-severe: #7e0023;
+
+  /* Source categories — deepened for a light field (fills, bars, small marks) */
+  --source-traffic: #b45309;       /* amber */
+  --source-industry: #6b5ca5;      /* violet */
+  --source-construction: #a1553a;  /* terracotta */
+  --source-burning: #b91c1c;       /* red */
 }
 
 .dark { }
@@ -86,53 +104,59 @@
     background-color: var(--bg-primary);
     color: var(--text);
     font-family: var(--font-sans);
-    font-size: 15px;
-    line-height: 1.55;
+    font-size: 14px; /* DESIGN.md body step */
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
 
   h1, h2, h3, h4 {
-    font-family: var(--font-display);
     letter-spacing: -0.01em;
-    line-height: 1.1;
+    line-height: 1.15;
+    font-weight: 700;
+    text-wrap: balance;
   }
 
   ::selection {
     background: var(--accent);
-    color: var(--bg-primary);
+    color: #ffffff;
   }
 
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--accent-dim);
     outline-offset: 2px;
   }
 }
 
+/* Data figures: same family, tabular digits so values don't jitter. */
 @utility mono {
-  font-family: var(--font-mono);
-  font-feature-settings: "tnum" 1, "zero" 1;
-  letter-spacing: -0.01em;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
+/* Quiet sentence-case label pill (the old uppercase-tracked eyebrow is banned). */
 @utility chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px;
-  border-radius: 3px;
-  font-size: 11px;
-  font-family: var(--font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
   border: 1px solid var(--border);
-  background: var(--surface-1);
+  background: var(--panel);
   color: var(--text-dim);
 }
 
 @utility panel {
-  background: var(--bg-secondary);
+  background: var(--panel);
   border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
+
+/* AQI indicator text follows the Legible Band Rule: ink on light bands,
+   white on Poor/Very Poor/Severe. Set via inline style from aqiCategory(). */
 
 @keyframes wind-flow {
   from { stroke-dashoffset: 24; }

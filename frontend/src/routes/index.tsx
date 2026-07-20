@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { MapView } from "@/components/MapView";
 import { LogoMark } from "@/components/AppShell";
 import { SOURCE_COLORS, SOURCE_EVIDENCE, SOURCE_LABELS, type SourceKey } from "@/lib/air-data";
+import { CITIZEN_APP_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   component: Landing,
@@ -18,7 +19,7 @@ function Landing() {
             AirGrid<span className="text-accent">·</span>NCR
           </span>
         </div>
-        <nav className="mono hidden items-center gap-6 text-[11px] uppercase tracking-wider text-text-dim md:flex">
+        <nav className="mono hidden items-center gap-6 text-[11px] text-text-dim md:flex">
           <a href="#attribution" className="hover:text-foreground">Attribution</a>
           <a href="#forecast" className="hover:text-foreground">Forecast</a>
           <a href="#audiences" className="hover:text-foreground">For operators</a>
@@ -26,7 +27,7 @@ function Landing() {
         </nav>
         <Link
           to="/dashboard"
-          className="mono border border-accent px-3 py-1.5 text-[11px] uppercase tracking-wider text-accent hover:bg-accent hover:text-accent-foreground"
+          className="mono border border-accent px-3 py-1.5 text-[11px] text-accent hover:bg-accent hover:text-accent-foreground"
         >
           Open dashboard →
         </Link>
@@ -42,36 +43,45 @@ function Landing() {
         <div className="relative z-10 mx-auto max-w-6xl px-6 pb-32 pt-24 md:pt-32">
           <div className="chip mb-6" style={{ color: "var(--accent)", borderColor: "var(--accent-dim)" }}>
             <span className="h-1.5 w-1.5 rounded-full bg-accent cell-pulse" />
-            Live · Delhi-NCR · 336 grid cells reporting
+            Delhi-NCR pilot · live pipeline · English + हिन्दी
           </div>
-          <h1 className="max-w-4xl font-display text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">
+          <h1 className="max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight md:text-6xl">
             Air quality forecasts that name the source —
             <span className="text-accent"> and where to act.</span>
           </h1>
           <p className="mt-6 max-w-2xl text-base text-text-dim md:text-lg">
             Every 1 km cell across the National Capital Region carries a 24–72 hour AQI forecast,
             a dominant emission source attributed with a confidence score, and the physical evidence
-            behind that call — wind corridor, land use, satellite fire detections.
+            behind that call — wind corridor, land use, satellite fire detections. And every citizen
+            gets it as personal, health-band-cited advice in their language.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <Link
               to="/dashboard"
-              className="mono inline-flex items-center gap-2 border border-accent bg-accent px-5 py-3 text-xs uppercase tracking-wider text-accent-foreground hover:brightness-110"
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-[#064a42]"
             >
               Open live dashboard
               <span aria-hidden>→</span>
             </Link>
             <a
+              href={CITIZEN_APP_URL}
+              target="_blank"
+              rel="noopener"
+              className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-accent-dim px-6 py-3 text-sm font-semibold text-accent hover:bg-accent hover:text-white"
+            >
+              Try VayuMitra — citizen app
+            </a>
+            <a
               href="#attribution"
-              className="mono inline-flex items-center gap-2 border border-border px-5 py-3 text-xs uppercase tracking-wider text-text-dim hover:border-accent-dim hover:text-foreground"
+              className="inline-flex items-center gap-2 px-2 py-3 text-sm font-semibold text-text-dim hover:text-foreground"
             >
               How attribution works
             </a>
           </div>
 
           {/* Coordinate readout */}
-          <div className="mono mt-16 grid max-w-3xl grid-cols-2 gap-x-8 gap-y-3 border-t border-border pt-6 text-[11px] uppercase tracking-wider text-text-mute md:grid-cols-4">
+          <div className="mono mt-16 grid max-w-3xl grid-cols-2 gap-x-8 gap-y-3 border-t border-border pt-6 text-[11px] text-text-mute md:grid-cols-4">
             <Readout k="Grid" v="1.0 km²" />
             <Readout k="Horizon" v="24 / 48 / 72 h" />
             <Readout k="Sources" v="4 attributed" />
@@ -85,7 +95,7 @@ function Landing() {
         <div className="mx-auto max-w-6xl px-6 py-24">
           <div className="mb-12 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="chip mb-3">§ 01 · Attribution</div>
+              <div className="chip mb-3">Attribution</div>
               <h2 className="max-w-2xl font-display text-3xl font-semibold md:text-4xl">
                 Four sources. Each detectable from independent physical evidence.
               </h2>
@@ -108,7 +118,7 @@ function Landing() {
       <section id="forecast" className="border-t border-border bg-bg-secondary">
         <div className="mx-auto max-w-6xl px-6 py-24">
           <div className="mb-10">
-            <div className="chip mb-3">§ 02 · Forecast horizon</div>
+            <div className="chip mb-3">Forecast horizon</div>
             <h2 className="max-w-2xl font-display text-3xl font-semibold md:text-4xl">
               Grid-resolution forecasts, 24 to 72 hours out.
             </h2>
@@ -121,7 +131,7 @@ function Landing() {
             <div className="grid grid-cols-3 border-b border-border bg-bg-primary">
               {["+24 h", "+48 h", "+72 h"].map((h, i) => (
                 <div key={h} className={`px-5 py-3 ${i === 0 ? "border-r-0" : "border-l border-border"}`}>
-                  <div className="mono text-[10px] uppercase tracking-wider text-text-mute">Horizon</div>
+                  <div className="mono text-[11px] text-text-mute">Horizon</div>
                   <div className="mono mt-1 text-lg text-accent">{h}</div>
                 </div>
               ))}
@@ -137,7 +147,7 @@ function Landing() {
       <section id="audiences" className="border-t border-border">
         <div className="mx-auto max-w-6xl px-6 py-24">
           <div className="mb-10">
-            <div className="chip mb-3">§ 03 · Who uses this</div>
+            <div className="chip mb-3">Who uses this</div>
             <h2 className="max-w-3xl font-display text-3xl font-semibold md:text-4xl">
               Built for operators making decisions. Legible enough for the citizens they serve.
             </h2>
@@ -166,7 +176,7 @@ function Landing() {
       {/* Method / CTA */}
       <section id="method" className="border-t border-border bg-bg-secondary">
         <div className="mx-auto max-w-6xl px-6 py-24 text-center">
-          <div className="chip mx-auto mb-6">§ 04 · Ready when you are</div>
+          <div className="chip mx-auto mb-6">Ready when you are</div>
           <h2 className="mx-auto max-w-3xl font-display text-3xl font-semibold md:text-5xl">
             Stop asking <span className="text-text-mute">"how bad is it?"</span>
             <br />Start asking <span className="text-accent">"what do we do about it?"</span>
@@ -174,13 +184,13 @@ function Landing() {
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Link
               to="/dashboard"
-              className="mono inline-flex items-center gap-2 border border-accent bg-accent px-6 py-3 text-xs uppercase tracking-wider text-accent-foreground hover:brightness-110"
+              className="mono inline-flex items-center gap-2 border border-accent bg-accent px-6 py-3 text-xs text-accent-foreground hover:brightness-110"
             >
               Open the dashboard →
             </Link>
             <Link
               to="/attribution"
-              className="mono inline-flex items-center gap-2 border border-border px-6 py-3 text-xs uppercase tracking-wider text-text-dim hover:border-accent-dim hover:text-foreground"
+              className="mono inline-flex items-center gap-2 border border-border px-6 py-3 text-xs text-text-dim hover:border-accent-dim hover:text-foreground"
             >
               City-wide trends
             </Link>
@@ -189,7 +199,7 @@ function Landing() {
       </section>
 
       <footer className="border-t border-border">
-        <div className="mono mx-auto flex max-w-6xl flex-col items-start gap-4 px-6 py-8 text-[11px] uppercase tracking-wider text-text-mute md:flex-row md:items-center md:justify-between">
+        <div className="mono mx-auto flex max-w-6xl flex-col items-start gap-4 px-6 py-8 text-[11px] text-text-mute md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2">
             <LogoMark />
             <span>AirGrid · NCR pipeline v0.4</span>
@@ -222,11 +232,11 @@ function SourceCard({ k }: { k: SourceKey }) {
           style={{ background: SOURCE_COLORS[k] }}
           aria-hidden
         />
-        <span className="mono text-[11px] uppercase tracking-wider text-text-mute">Source</span>
+        <span className="mono text-[11px] text-text-mute">Source</span>
         <span className="font-display text-lg text-foreground">{SOURCE_LABELS[k]}</span>
       </div>
       <p className="text-sm text-text-dim">{SOURCE_EVIDENCE[k]}</p>
-      <div className="mono mt-4 flex items-center gap-4 text-[10px] uppercase tracking-wider text-text-mute">
+      <div className="mono mt-4 flex items-center gap-4 text-[11px] text-text-mute">
         <span>Evidence · wind corridor</span>
         <span>·</span>
         <span>Land use</span>
@@ -260,11 +270,11 @@ function AudiencePanel({
       <div className="mt-6 flex items-end justify-between border-t border-border pt-4">
         <div>
           <div className="mono text-3xl text-accent">{stat}</div>
-          <div className="mono text-[10px] uppercase tracking-wider text-text-mute">{statLabel}</div>
+          <div className="mono text-[11px] text-text-mute">{statLabel}</div>
         </div>
         <Link
           to={cta.to}
-          className="mono border border-border px-3 py-1.5 text-[11px] uppercase tracking-wider text-text-dim hover:border-accent hover:text-accent"
+          className="mono border border-border px-3 py-1.5 text-[11px] text-text-dim hover:border-accent hover:text-accent"
         >
           {cta.label} →
         </Link>

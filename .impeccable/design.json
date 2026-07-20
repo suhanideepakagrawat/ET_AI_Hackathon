@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-21T00:00:00Z",
+  "title": "Design System: PS5 Urban Air Quality Intelligence",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Deep Civic Teal", "canonical": "oklch(0.41 0.066 178)", "tonalRamp": ["#031f1c", "#053b35", "#064a42", "#075e54", "#0a746a", "#189284", "#57b3a6", "#a7d8d0", "#dcefec"] },
+      "primary-strong": { "role": "primary", "displayName": "Active Teal", "canonical": "oklch(0.49 0.084 176)" },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "oklch(0.22 0.012 205)", "tonalRamp": ["#0e1a1c", "#182629", "#27363a", "#3a4b50", "#47585c", "#6a797d", "#94a1a4", "#c3ccce", "#e9eeee"] },
+      "ink-muted": { "role": "neutral", "displayName": "Muted Ink", "canonical": "oklch(0.45 0.017 215)" },
+      "surface": { "role": "neutral", "displayName": "Cool Surface", "canonical": "oklch(0.965 0.003 200)", "tonalRamp": ["#c7cfcf", "#d6dedd", "#e2e8e8", "#e9eeee", "#f2f5f5", "#f7f9f9", "#fbfcfc", "#ffffff", "#ffffff"] },
+      "panel": { "role": "neutral", "displayName": "Panel White", "canonical": "oklch(1 0 0)" },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "oklch(0.88 0.005 200)" },
+      "bubble-out": { "role": "neutral", "displayName": "Teal Whisper", "canonical": "oklch(0.93 0.02 176)" },
+      "aqi-good": { "role": "tertiary", "displayName": "AQI Good", "canonical": "oklch(0.60 0.13 165)" },
+      "aqi-satisfactory": { "role": "tertiary", "displayName": "AQI Satisfactory", "canonical": "oklch(0.78 0.17 128)" },
+      "aqi-moderate": { "role": "tertiary", "displayName": "AQI Moderate", "canonical": "oklch(0.90 0.16 100)" },
+      "aqi-poor": { "role": "tertiary", "displayName": "AQI Poor", "canonical": "oklch(0.76 0.16 62)" },
+      "aqi-very-poor": { "role": "tertiary", "displayName": "AQI Very Poor", "canonical": "oklch(0.54 0.22 15)" },
+      "aqi-severe": { "role": "tertiary", "displayName": "AQI Severe", "canonical": "oklch(0.38 0.16 12)" }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Zone names, screen and card titles." },
+      "body": { "displayName": "Body", "purpose": "Advisory messages and chat; cap prose at 65-75ch." },
+      "label": { "displayName": "Label", "purpose": "Chips, badges, meta rows, buttons." },
+      "data": { "displayName": "Data", "purpose": "The AQI number; tabular figures so digits don't jitter." },
+      "caption": { "displayName": "Caption", "purpose": "Timestamps, meta rows, provenance lines. Muted Ink." }
+    },
+    "shadows": [
+      { "name": "hover-lift", "value": "0 2px 8px rgba(9,20,28,0.08)", "purpose": "Card/chip on hover; pairs with a 1-2px translateY." },
+      { "name": "overlay", "value": "0 8px 28px rgba(9,20,28,0.18)", "purpose": "Floating surfaces only - voice bar, menus, dialogs." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Default easing for state transitions (ease-out-quint)." },
+      { "name": "state", "value": "180ms", "purpose": "Standard state-change duration; range 150-250ms." }
+    ],
+    "breakpoints": [
+      { "name": "app", "value": "470px", "purpose": "Max width of the single-column citizen app shell." },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Icon Button (Send)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Teal circular action for send/confirm; white glyph.",
+      "html": "<button class=\"ds-btn-primary\" aria-label=\"Send\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></button>",
+      "css": ".ds-btn-primary{width:45px;height:45px;border-radius:999px;border:0;background:#075e54;color:#fff;display:grid;place-items:center;cursor:pointer;transition:background 180ms cubic-bezier(0.22,1,0.36,1),transform 180ms cubic-bezier(0.22,1,0.36,1)}.ds-btn-primary:hover{background:#064a42;transform:translateY(-1px)}.ds-btn-primary:focus-visible{outline:2px solid #0a746a;outline-offset:2px}"
+    },
+    {
+      "name": "Mic Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Voice input; switches to an alert fill with a slow pulse while listening (the one place motion signals live state).",
+      "html": "<button class=\"ds-btn-mic\" aria-label=\"Speak\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"9\" y=\"3\" width=\"6\" height=\"11\" rx=\"3\"/><path d=\"M5 11a7 7 0 0 0 14 0M12 18v3\"/></svg></button>",
+      "css": ".ds-btn-mic{width:45px;height:45px;border-radius:999px;border:0;background:#075e54;color:#fff;display:grid;place-items:center;cursor:pointer;transition:background 180ms cubic-bezier(0.22,1,0.36,1)}.ds-btn-mic:hover{background:#064a42}.ds-btn-mic:focus-visible{outline:2px solid #0a746a;outline-offset:2px}.ds-btn-mic[data-recording=\"true\"]{background:#cc0033;animation:ds-pulse 1s infinite}@keyframes ds-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}@media (prefers-reduced-motion:reduce){.ds-btn-mic[data-recording=\"true\"]{animation:none}}"
+    },
+    {
+      "name": "Quick-reply Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Tappable suggestion / filter; outline at rest, teal fill on hover and when selected.",
+      "html": "<button class=\"ds-chip\">Should I wear a mask?</button>",
+      "css": ".ds-chip{border:1.4px solid #0a746a;background:#fff;color:#0a746a;border-radius:999px;padding:7px 12px;font:600 0.78rem/1.2 system-ui,'Segoe UI',Roboto,sans-serif;cursor:pointer;transition:background 150ms,color 150ms}.ds-chip:hover{background:#075e54;border-color:#075e54;color:#fff}.ds-chip[aria-pressed=\"true\"]{background:#075e54;border-color:#075e54;color:#fff}.ds-chip:focus-visible{outline:2px solid #0a746a;outline-offset:2px}"
+    },
+    {
+      "name": "Advisory Card",
+      "kind": "card",
+      "refersTo": "card-advisory",
+      "description": "Flat white card, full 1px hairline border, no resting shadow. Severity is carried by the AQI indicator inside it, never a colored side-stripe.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-aqi\" data-band=\"poor\"><b>287</b><small>AQI</small></div><div class=\"ds-card-meta\"><b>ITO Junction</b><span>Poor · next 24h</span></div></div>",
+      "css": ".ds-card{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #d6dedd;border-radius:12px;padding:12px;color:#0e1a1c;transition:box-shadow 180ms,transform 180ms}.ds-card:hover{box-shadow:0 2px 8px rgba(9,20,28,0.08);transform:translateY(-1px)}.ds-aqi{width:56px;height:56px;border-radius:999px;display:grid;place-items:center;text-align:center;line-height:1;background:#ff9933;color:#0e1a1c}.ds-aqi[data-band=\"very-poor\"],.ds-aqi[data-band=\"severe\"],.ds-aqi[data-band=\"poor\"]{color:#0e1a1c}.ds-aqi b{font:700 1.25rem/1 system-ui;font-variant-numeric:tabular-nums}.ds-aqi small{font-size:8px;opacity:.85}.ds-card-meta b{font:700 1rem/1.25 system-ui}.ds-card-meta span{display:block;font:400 0.78rem/1.2 system-ui;color:#47585c}"
+    },
+    {
+      "name": "Chat Bubble (incoming)",
+      "kind": "custom",
+      "refersTo": "bubble-in",
+      "description": "Assistant message; white panel, hairline, one squared corner.",
+      "html": "<div class=\"ds-bubble-in\">In ITO Junction the forecast is AQI 287 (Poor). Best to avoid outdoor activity.</div>",
+      "css": ".ds-bubble-in{max-width:80%;background:#fff;border:1px solid #d6dedd;color:#0e1a1c;border-radius:11px;border-top-left-radius:3px;padding:9px 11px;font:400 0.875rem/1.45 system-ui,'Segoe UI',Roboto,sans-serif}"
+    },
+    {
+      "name": "Chat Bubble (outgoing)",
+      "kind": "custom",
+      "refersTo": "bubble-out",
+      "description": "The citizen's message; teal-whisper tint replacing the neon green.",
+      "html": "<div class=\"ds-bubble-out\">Can my child play outside this evening?</div>",
+      "css": ".ds-bubble-out{max-width:80%;margin-left:auto;background:#dbeeeb;color:#0e1a1c;border-radius:11px;border-top-right-radius:3px;padding:9px 11px;font:400 0.875rem/1.45 system-ui,'Segoe UI',Roboto,sans-serif}"
+    },
+    {
+      "name": "Chat Input",
+      "kind": "input",
+      "refersTo": "input-chat",
+      "description": "Pill input; hairline at rest, teal ring on focus, muted placeholder that clears 4.5:1.",
+      "html": "<input class=\"ds-input\" placeholder=\"Ask about the air…\" />",
+      "css": ".ds-input{width:100%;background:#fff;border:1px solid #d6dedd;border-radius:999px;padding:11px 15px;color:#0e1a1c;font:400 0.875rem/1.4 system-ui;outline:none}.ds-input::placeholder{color:#47585c}.ds-input:focus{border-color:#0a746a;box-shadow:0 0 0 2px rgba(10,116,106,0.35)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Public Health Bulletin",
+    "overview": "This system carries the composure of an official air-quality advisory: the kind of notice a citizen reads and acts on, and an inspector cites in a decision. It is calm, legible, and sourced. Authority comes from restraint and evidence, not decoration - the interface recedes so the number, the band, and the recommended action stand forward. Warmth lives in the language and the human framing, never in the chrome. The palette is a cool, quiet neutral with a single deep-teal voice; the only loud colors on screen are the CPCB AQI bands, because severity is the message. It is positioned between the failures it rejects: the machine-made generic AI-SaaS look, the boring corporate-government portal, the childish messaging-app aesthetic its first draft leaned on, and any flashy or gimmicky motion.",
+    "keyCharacteristics": [
+      "Cool neutral surface, one deep-teal action voice, CPCB AQI bands as the only saturated color.",
+      "One sans family, fixed rem scale, tabular figures for AQI numbers.",
+      "Flat by default; depth is a response to state, never ambient decoration.",
+      "Every severity is stated three ways - color, band name, number - never color alone.",
+      "Evidence is visible: sources are cited inline, not hidden."
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Teal is the only chrome accent and appears only on interactive or brand elements - actions, selection, focus, header. It never decorates; its restraint is what makes the AQI bands read as urgent.", "section": "colors" },
+      { "name": "The Legible Band Rule", "body": "An AQI band fill carries white text only on Very Poor and Severe. Good, Satisfactory, Moderate, and Poor are too light for white and carry Ink text (#0e1a1c). Severity always pairs with the band name and number, so a color-blind reader loses nothing.", "section": "colors" },
+      { "name": "The One Family Rule", "body": "No display face, no second sans, no mono. Emphasis comes from weight or size, never family.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. A shadow means something changed state or is floating. If a card has a resting shadow for depth, delete it.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do ground the page in cool neutrals - Surface #f2f5f5 with Panel-white cards and 1px Line borders.",
+      "Do carry AQI severity three ways: band color on the indicator, band name, and number. Ink text on Good/Satisfactory/Moderate fills.",
+      "Do keep Deep Civic Teal as the single action voice; accent = actions, selection, focus only.",
+      "Do cite every number to its authority inline (CPCB / SAFAR / WHO / GRAP).",
+      "Do use one system sans at a fixed rem scale with tabular figures for data.",
+      "Do keep motion to state feedback - 150-250ms, ease-out - with a prefers-reduced-motion fallback."
+    ],
+    "donts": [
+      "Don't use warm cream/sand/beige body backgrounds (the retired #e9e2db family) - the generic AI-SaaS tell.",
+      "Don't use neon/candy greens (#25d366) or WhatsApp-style messaging chrome; this is a public-health service, not a chat toy.",
+      "Don't use emoji as load-bearing UI or icons; keep them to sparse persona/domain accents.",
+      "Don't use side-stripe borders (border-left/right greater than 1px as a colored accent) on cards or callouts. The AQI indicator carries severity.",
+      "Don't put white text on light AQI bands (Good, Satisfactory, Moderate); it fails contrast.",
+      "Don't ship the corporate-government look: navy-and-grey, stock photos, clip-art icons, unstyled tables.",
+      "Don't reach for gradient text, glassmorphism-by-default, hero-metric templates, identical icon-card grids, or tiny uppercase tracked eyebrows.",
+      "Don't add decorative or gimmicky motion; motion conveys state, nothing else."
+    ]
+  }
+}
