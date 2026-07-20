@@ -1,0 +1,181 @@
+<div align="center">
+
+# 🌬️ AirGrid · NCR
+
+### Urban Air Quality Intelligence for Smart-City Intervention
+
+**Delhi has 40+ air-quality sensors and no intelligence layer. We built one.**
+
+*Which source is polluting you right now · what the air will be in 24–72 hours ·
+where to send inspectors · and what **you** personally should do — in your language.*
+
+<br/>
+
+[![Live Citizen App](https://img.shields.io/badge/🟢_VayuMitra-Live_Demo-075e54?style=for-the-badge)](https://vayumitra-advisory.onrender.com)
+[![API Docs](https://img.shields.io/badge/⚙️_API-Swagger_Docs-0a746a?style=for-the-badge)](https://vayumitra-advisory.onrender.com/docs)
+
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React_19-dashboard-61DAFB?logo=react&logoColor=black)
+![XGBoost](https://img.shields.io/badge/XGBoost-3_trained_models-EB5E28)
+![Groq](https://img.shields.io/badge/Llama_3.3-via_Groq-f55036)
+![Tests](https://img.shields.io/badge/tests-16%2F16_passing-009966)
+
+<sub>ET AI Hackathon 2026 · Problem Statement 5 · Team: Suhani · Parth · Krishna · Bind</sub>
+
+</div>
+
+---
+
+> ⏱️ **Judging in a hurry?** Open the **[live citizen app](https://vayumitra-advisory.onrender.com)** (free-tier server — first load may take ~40s to wake, then it's fast), ask *"can my child play outside this evening?"*, tap **हिं** for Hindi, and tap **📖 sources** under any answer. That's Features 1+2+4 working end-to-end, deployed.
+
+---
+
+## The problem
+
+India's cities *measure* air pollution; they rarely *act* on it in time. Readings exist, but three questions stay unanswered every day:
+
+1. **Which source** is driving pollution in *this* ward, *right now*?
+2. **What will the air be** tomorrow and the day after — per locality, not city-wide?
+3. **So what?** — where should inspectors go first, and what should a parent, an asthmatic, or an outdoor worker actually *do*?
+
+**AirGrid** turns the existing sensor network into a ward-level intelligence layer that answers all three — for authorities *and* citizens.
+
+## What we built — the five features
+
+| # | Feature | What it does | Status |
+|---|---------|--------------|:------:|
+| 1 | **Hyperlocal AQI Forecasting** | 24/48/72-hour AQI per ~1 km cell — XGBoost forecasters + a spatial estimator predict air quality *where there are no sensors* | ✅ trained |
+| 2 | **Geospatial Source Attribution** | Per cell: traffic vs industry vs construction %, with **confidence scores** and **upwind-corridor evidence** (wind + land use + OSM) | ✅ built |
+| 3 | **Enforcement Intelligence** | Severity × attribution × persistence → a **ranked inspector-deployment list** with evidence strings and recommended actions | ✅ built |
+| 4 | **Citizen Health Advisory** 🌟 | **VayuMitra** — a multilingual (English/हिन्दी), voice-enabled assistant giving persona-specific advice (child · elderly · asthma · outdoor worker · pregnant), grounded in **CPCB · SAFAR · WHO · GRAP** citations | ✅ **deployed** |
+| 5 | **Multi-City Comparison** | Same pipeline, second city (Mumbai) from one config block — band distribution, source mix, modelled intervention impact | ✅ built |
+
+## See it
+
+| Operator dashboard | Citizen advisory (VayuMitra) |
+|:---:|:---:|
+| ![Dashboard](docs/screenshots/dash_02_dashboard.png) | ![VayuMitra](docs/screenshots/02_advisory_sources.png) |
+| *1 km grid · source attribution · wind corridors · enforcement pins* | *Persona-aware, health-band-cited, English + हिन्दी, voice* |
+
+| Landing | Enforcement queue |
+|:---:|:---:|
+| ![Landing](docs/screenshots/dash_01_landing.png) | ![Enforcement](docs/screenshots/dash_04_enforcement.png) |
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph DATA["📡 Data (snapshot-first)"]
+        A[CPCB / OpenAQ stations]
+        B[Open-Meteo weather]
+        C[OSM roads · land use]
+    end
+
+    subgraph ML["🧠 ML core — 3 trained models"]
+        D[Spatial estimator<br/>AQI where no sensor is]
+        E[Forecasters<br/>+24 / +48 / +72 h]
+        F[Source attribution<br/>+ upwind tracing]
+    end
+
+    subgraph ACT["🎯 Intelligence"]
+        G[Enforcement ranking<br/>severity × source × persistence]
+        H[VayuMitra advisory<br/>persona · language · voice]
+    end
+
+    subgraph SERVE["🖥️ Serving"]
+        I[FastAPI<br/>one unified API]
+        J[React dashboard<br/>operators]
+        K[Citizen chat app<br/>EN · हिन्दी · voice]
+    end
+
+    A & B & C --> D --> E --> F
+    E & F --> G
+    E & F --> H
+    G & H --> I
+    I --> J & K
+```
+
+**The honest split:** three small numeric models are **trained** (XGBoost — spatial estimation, forecasting, attribution features); language is **called** (Llama-3.3 via Groq, with deterministic fallbacks). Attribution is *directional evidence with confidence scores*, not exact plume physics — and the UI says so.
+
+## Why VayuMitra is different
+
+Most AQI apps show a number and a color. VayuMitra answers *your* question:
+
+- 🧒 **Persona-aware** — *"can my child play outside?"* answers differently than *"can I go for a run?"*. Sensitive groups (children, elderly, asthma/heart, pregnant, outdoor workers) are warned a band earlier.
+- 📖 **Every answer cites authority** — CPCB National AQI bands, SAFAR advisories, WHO 2021 guidelines, and the active **GRAP stage** — tappable, with publisher and year. No invented thresholds: the LLM phrases only what the deterministic engine and cited sources establish.
+- 🗣️ **Speaks your language** — full English/हिन्दी parity, neural text-to-speech with pause/stop, mic input. Built for low-literacy users, not just app-natives.
+- 🛡️ **Never breaks in a demo** — no API key? Deterministic templates. No data? Committed sample. No network? Browser voice. Every layer degrades gracefully.
+- ⚖️ **Guidance, not diagnosis** — every message carries the disclaimer; low false-positive tone by design.
+
+## Run it locally
+
+**Backend + citizen app** (zero-config — runs fully without any API key):
+
+```bash
+pip install -r requirements-advisory.txt
+uvicorn backend.main:app --reload --port 8000
+# → http://localhost:8000/citizen   (VayuMitra)
+# → http://localhost:8000/docs      (all endpoints)
+```
+
+Optional `.env` for live LLM + neural voice (copy `.env.example`): `GROQ_API_KEY` (free at console.groq.com), `DEEPGRAM_API_KEY`.
+
+**Operator dashboard:**
+
+```bash
+cd frontend && npm install && npm run dev
+# → http://localhost:8080
+```
+
+**Tests:** `python tests/test_advisory.py` → 16/16 offline (no keys, no network needed).
+
+## API at a glance
+
+| Endpoint | Feature | Returns |
+|---|:---:|---|
+| `GET /api/v1/forecasts` | 1 | 24/48/72h AQI per cell |
+| `GET /api/v1/attribution` | 2 | source %, confidence, evidence |
+| `GET /api/v1/enforcement` | 3 | ranked action list |
+| `GET /wards` | 1+2 | per-ward AQI + band + dominant source |
+| `GET /advisory` · `POST /chat` | 4 | cited, persona-specific advice (EN/HI) |
+| `GET /tts` | 4 | streamed neural speech |
+| `GET /compare` | 5 | multi-city summary + intervention model |
+| `GET /sources` | 4 | the authority registry (CPCB · SAFAR · WHO · GRAP · NCAP) |
+
+## Repository map
+
+```
+├── ml_pipeline/          # Feature 1: data fetch, training, prediction + enforcement scripts
+├── models/               # trained XGBoost artifacts (24/48/72h + spatial)
+├── notebooks/            # Feature 2: geospatial source attribution (wind-corridor evidence)
+├── backend/              # unified FastAPI (api/v1 + advisory + citizen app)
+├── advisory/             # Feature 4: personas, CPCB bands, sources, LLM, translate, TTS
+├── compare/              # Feature 5: multi-city aggregation
+├── frontend/             # React 19 operator dashboard (TanStack Start)
+│   └── advisory_demo.html  # VayuMitra citizen app (self-contained)
+├── config/city.yaml      # THE parameterisation: add a city = add a config block
+├── data/mock/            # committed samples — everything runs with zero live data
+├── PRODUCT.md · DESIGN.md  # our design system ("The Public Health Bulletin")
+└── tests/                # 16 offline tests
+```
+
+## Honesty notes (what we claim vs. don't)
+
+- ✅ Ward-level estimation, forecasts, and attribution with stated confidence — **directional evidence**, not exact plume modelling.
+- ✅ One city built deep (Delhi); the second city proves the architecture is a config block, not a rebuild.
+- ✅ Language is a called LLM with deterministic fallbacks; it cannot invent health thresholds.
+- ❌ No claim of medical advice, live-API operation at scale, or official government status.
+
+## Team
+
+| | Built |
+|---|---|
+| **Suhani** | Data pipeline captaincy · Feature 4/5 co-design |
+| **Parth** | Feature 2 source-attribution engine · dashboard frontend base |
+| **Krishna** | Feature 1 forecasting models · Feature 3 enforcement engine |
+| **Bind** | Feature 4 VayuMitra (advisory · voice · i18n) · Feature 5 · unified backend · deploy |
+
+<div align="center">
+<sub>Built in 3 weeks for ET AI Hackathon 2026 · PS5 · Made with care for the 30 million people breathing Delhi's air 🫁</sub>
+</div>
