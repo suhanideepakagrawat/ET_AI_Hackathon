@@ -125,6 +125,52 @@ def sources_endpoint() -> dict:
     return {"count": len(sources.all_sources()), "sources": sources.all_sources()}
 
 
+def _csv_records(filename: str, limit: int = 250) -> dict:
+    """Read a data CSV into JSON-safe records. Foolproof contract: always
+    returns {available, items}; missing file or bad parse -> available: False."""
+    path = _REPO_ROOT / "data" / filename
+    if not path.exists():
+        return {"available": False, "items": []}
+    try:
+        import numpy as np
+        import pandas as pd
+        df = pd.read_csv(path).head(limit)
+        df = df.replace([np.nan, np.inf, -np.inf], None)
+        return {"available": True, "items": df.to_dict(orient="records")}
+    except Exception:
+        return {"available": False, "items": []}
+
+
+@router.get("/enforcement/top")
+def enforcement_top() -> dict:
+    """Top-ranked enforcement targets (Feature 3 output, ranked, ~20 rows)."""
+    out = _csv_records("top_enforcement_targets.csv", limit=50)
+    return out
+
+
+@router.get("/deployment")
+def deployment_plan(limit: int = Query(default=25)) -> dict:
+    """Ward-level inspector deployment plan (Feature 3): where to send teams."""
+    out = _csv_records("ward_deployment_plan.csv", limit=limit)
+    if out["available"]:
+        # Normalise the key names the dashboard consumes.
+        items = []
+        for r in out["items"]:
+            items.append({
+                "rank": r.get("deployment_rank"),
+                "ward_no": str(r.get("Ward_No", "")),
+                "ward_name": str(r.get("Ward_Name", "")).title(),
+                "hotspots": r.get("hotspot_count"),
+                "max_aqi": r.get("max_aqi"),
+                "avg_aqi": round(r["avg_aqi"], 1) if isinstance(r.get("avg_aqi"), float) else r.get("avg_aqi"),
+                "deployment_score": r.get("deployment_score"),
+                "dominant_source": r.get("dominant_source"),
+                "recommended_team": r.get("recommended_team"),
+            })
+        out["items"] = items
+    return out
+
+
 @router.get("/wards")
 def wards(city: str | None = Query(default=None)) -> dict:
     zones = list_zones(city)
@@ -182,6 +228,40 @@ def compare_endpoint(cities: str | None = Query(default=None)) -> dict:
     return compare(keys)
 
 
+# ---------------------------------------------------------------------------
+# Keep-alive: Render's free tier sleeps after ~15 min without inbound traffic.
+# When running ON Render (env RENDER=true), a daemon thread pings the public
+# URLs of both services every 10 minutes, which counts as inbound traffic and
+# keeps them warm — no cold starts during judging. Overridable/disable-able via
+# KEEPALIVE_URLS / KEEPALIVE=0. A GitHub Actions cron does the same as backup.
+# ---------------------------------------------------------------------------
+_KEEPALIVE_DEFAULT = ("https://vayumitra-advisory.onrender.com/health,"
+                      "https://airgrid-dashboard.onrender.com/")
+
+
+def _start_keepalive() -> None:
+    import os
+    import threading
+    import time
+
+    if os.getenv("KEEPALIVE", "1") == "0" or not os.getenv("RENDER"):
+        return
+    urls = [u.strip() for u in
+            os.getenv("KEEPALIVE_URLS", _KEEPALIVE_DEFAULT).split(",") if u.strip()]
+
+    def _loop() -> None:
+        import requests
+        while True:
+            time.sleep(600)
+            for u in urls:
+                try:
+                    requests.get(u, timeout=30)
+                except Exception:
+                    pass
+
+    threading.Thread(target=_loop, daemon=True, name="keepalive").start()
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="PS5 · Citizen Air-Quality Advisory API",
@@ -189,6 +269,7 @@ def create_app() -> FastAPI:
                     "Feature 5 (multi-city comparison).",
         version="1.0.0",
     )
+    _start_keepalive()
     # Demo-friendly CORS. Tighten to the deployed frontend origin in production.
     app.add_middleware(
         CORSMiddleware,

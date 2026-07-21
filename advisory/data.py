@@ -41,53 +41,96 @@ def _confidence_label(conf: float) -> str:
     return "Low-confidence directional evidence"
 
 
+# Optional cell->ward mapping (Ward_No, Ward_Name per cell_id). When present,
+# the advisory serves REAL Delhi wards by name instead of anonymous grid cells.
+_WARD_MAP_FILE = "data/future_aqi_forecast_ward.csv"
+
+_SRC_KEYS = {"traffic": "traffic_pct", "industry": "industry_pct",
+             "construction": "construction_pct"}
+_SRC_LABEL = {"traffic": "Traffic/Roads", "industry": "Industry",
+              "construction": "Construction/Dust"}
+
+
+def _ward_title(name: str) -> str:
+    # "GEETA COLONY" -> "Geeta Colony"; keep dotted initials ("I.P Extention").
+    return " ".join(w if "." in w else w.capitalize() for w in str(name).split())
+
+
+def _zone_from_group(zone_id: str, name: str, grp) -> dict:
+    """Aggregate a (cell- or ward-level) group of horizon rows into one zone."""
+    import pandas as pd
+
+    by_h = grp.groupby("horizon_hours")["forecast_aqi"].mean()
+    forecast = {str(int(h)): round(float(v), 1) for h, v in by_h.items()}
+    last = None
+    for h in ("24", "48", "72"):
+        if h in forecast:
+            last = forecast[h]
+        elif last is not None:
+            forecast[h] = last
+    current = forecast.get("24", round(float(grp["forecast_aqi"].mean()), 1))
+
+    mix = {}
+    for key, col in _SRC_KEYS.items():
+        mix[key] = round(float(grp[col].mean()), 1) if col in grp else 0.0
+    total = sum(mix.values()) or 1.0
+    mix = {k: round(v * 100.0 / total, 1) if total > 5 else v for k, v in mix.items()}
+    dom_key = max(mix, key=mix.get)
+
+    conf = round(float(grp["confidence"].mean()), 2) if "confidence" in grp else 0.5
+    return {
+        "zone_id": zone_id,
+        "name": name,
+        "lat": round(float(grp["lat"].mean()), 5),
+        "lon": round(float(grp["lon"].mean()), 5),
+        "forecast": forecast,
+        "current_aqi": current,
+        "sources": mix,
+        "dominant_source": _SRC_LABEL[dom_key],
+        "dominant_source_pct": mix[dom_key],
+        "confidence": conf,
+        "confidence_label": _confidence_label(conf),
+        "cells": int(grp["cell_id"].nunique()),
+    }
+
+
 def _load_real_csv(path: Path) -> list[dict]:
-    """Pivot the per-(cell, horizon) CSV into per-zone records."""
+    """Real pipeline output -> zones. Ward-aggregated when the ward map exists
+    (real Delhi ward names); per-cell otherwise. Never raises to the caller
+    beyond schema validation — foolproof over fancy."""
     import pandas as pd  # local import so the mock path needs no pandas
 
     df = pd.read_csv(path)
     if not _REAL_COLS.issubset(df.columns):
         missing = _REAL_COLS - set(df.columns)
         raise ValueError(f"attribution CSV missing columns: {missing}")
+    df = df.dropna(subset=["forecast_aqi", "horizon_hours"])
 
-    zones: list[dict] = []
-    for cell_id, grp in df.groupby("cell_id"):
-        grp = grp.sort_values("horizon_hours")
-        first = grp.iloc[0]
-        forecast = {
-            str(int(r.horizon_hours)): float(r.forecast_aqi)
-            for r in grp.itertuples()
-            if not pd.isna(r.horizon_hours)
-        }
-        # Ensure all three horizons exist (carry forward if a horizon is absent).
-        last = None
-        for h in ("24", "48", "72"):
-            if h in forecast:
-                last = forecast[h]
-            elif last is not None:
-                forecast[h] = last
-        current = forecast.get("24") or float(first.forecast_aqi)
-        conf = float(first.confidence) if "confidence" in df.columns else 0.5
-        zones.append({
-            "zone_id": str(cell_id),
-            "name": str(first.get("name", _friendly_name(str(cell_id))))
-            if hasattr(first, "get") else _friendly_name(str(cell_id)),
-            "lat": float(first.lat),
-            "lon": float(first.lon),
-            "forecast": forecast,
-            "current_aqi": current,
-            "sources": {
-                "traffic": float(getattr(first, "traffic_pct", 0) or 0),
-                "industry": float(getattr(first, "industry_pct", 0) or 0),
-                "construction": float(getattr(first, "construction_pct", 0) or 0),
-            },
-            "dominant_source": str(first.dominant_source),
-            "dominant_source_pct": float(getattr(first, "dominant_source_pct", 0) or 0),
-            "confidence": conf,
-            "confidence_label": str(getattr(first, "confidence_label", "")
-                                    or _confidence_label(conf)),
-        })
-    return zones
+    # Try to enrich with real ward names (join verified 1600/1600 on cell_id).
+    ward_path = REPO_ROOT / _WARD_MAP_FILE
+    if ward_path.exists():
+        try:
+            wmap = (pd.read_csv(ward_path, usecols=["cell_id", "Ward_No", "Ward_Name"])
+                    .dropna(subset=["Ward_Name"]).drop_duplicates("cell_id"))
+            merged = df.merge(wmap, on="cell_id", how="inner")
+            if len(merged) >= 0.5 * len(df):        # sanity: join must actually take
+                def _wid(wno) -> str:
+                    # Ward_No is usually numeric ("133") but Delhi Cantonment
+                    # wards use codes like "CANT_2" — keep them as slugs.
+                    s = str(wno).strip().replace(" ", "_")
+                    return f"W{s[:-2]}" if s.endswith(".0") else f"W{s}"
+                zones = [
+                    _zone_from_group(_wid(wno), _ward_title(wname), grp)
+                    for (wno, wname), grp in merged.groupby(["Ward_No", "Ward_Name"])
+                ]
+                return zones
+        except Exception:
+            pass  # fall through to per-cell zones
+
+    return [
+        _zone_from_group(str(cid), _friendly_name(str(cid)), grp)
+        for cid, grp in df.groupby("cell_id")
+    ]
 
 
 def _load_mock(path: Path) -> list[dict]:

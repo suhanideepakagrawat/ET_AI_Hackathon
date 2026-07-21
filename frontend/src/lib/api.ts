@@ -55,10 +55,38 @@ export type CitySummary = {
   data_kind: "real" | "mock";
 };
 
+export type DeploymentRow = {
+  rank: number;
+  ward_no: string;
+  ward_name: string;
+  hotspots: number;
+  max_aqi: number;
+  avg_aqi: number;
+  deployment_score: number;
+  dominant_source: string | null;
+  recommended_team: string | null;
+};
+
+export type TopTarget = {
+  cell_id: number;
+  lat: number;
+  lon: number;
+  max_priority: number;
+  max_aqi: number;
+  dominant_source: string;
+  action: string;
+  evidence: string;
+  rank: number;
+};
+
 export const fetchHealth = () => get<{ status: string; llm: string; voice: string }>("/health", 5000);
 export const fetchWards = (city?: string) =>
   get<WardsResponse>(`/wards${city ? `?city=${encodeURIComponent(city)}` : ""}`);
 export const fetchCompare = () => get<{ cities: CitySummary[]; note: string }>("/compare");
+export const fetchDeployment = () =>
+  get<{ available: boolean; items: DeploymentRow[] }>("/deployment?limit=30");
+export const fetchTopTargets = () =>
+  get<{ available: boolean; items: TopTarget[] }>("/enforcement/top");
 
 // Query configs shared by routes (react-query is already in the root context).
 export const wardsQuery = (city?: string) => ({
@@ -78,6 +106,20 @@ export const healthQuery = {
 export const compareQuery = {
   queryKey: ["compare"],
   queryFn: fetchCompare,
+  staleTime: 5 * 60_000,
+  retry: 1,
+};
+
+export const deploymentQuery = {
+  queryKey: ["deployment"],
+  queryFn: fetchDeployment,
+  staleTime: 5 * 60_000,
+  retry: 1,
+};
+
+export const topTargetsQuery = {
+  queryKey: ["topTargets"],
+  queryFn: fetchTopTargets,
   staleTime: 5 * 60_000,
   retry: 1,
 };

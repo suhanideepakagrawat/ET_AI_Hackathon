@@ -19,3 +19,6 @@ node_modules/
 
 # Bind's personal reference docs (plans, PDFs) — keep local, not in the shared repo
 Bind's Workspace/
+
+# Build output
+frontend/.output/

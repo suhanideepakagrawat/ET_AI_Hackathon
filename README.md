@@ -12,14 +12,16 @@ where to send inspectors · and what **you** personally should do — in your la
 <br/>
 
 [![Live Citizen App](https://img.shields.io/badge/🟢_VayuMitra-Live_Demo-075e54?style=for-the-badge)](https://vayumitra-advisory.onrender.com)
-[![API Docs](https://img.shields.io/badge/⚙️_API-Swagger_Docs-0a746a?style=for-the-badge)](https://vayumitra-advisory.onrender.com/docs)
+[![Live Dashboard](https://img.shields.io/badge/🟢_AirGrid-Operator_Dashboard-0a746a?style=for-the-badge)](https://airgrid-dashboard.onrender.com)
+[![API Docs](https://img.shields.io/badge/⚙️_API-Swagger_Docs-475a5c?style=for-the-badge)](https://vayumitra-advisory.onrender.com/docs)
 
+![Real data](https://img.shields.io/badge/data-REAL_pipeline_output-009966)
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React_19-dashboard-61DAFB?logo=react&logoColor=black)
 ![XGBoost](https://img.shields.io/badge/XGBoost-3_trained_models-EB5E28)
 ![Groq](https://img.shields.io/badge/Llama_3.3-via_Groq-f55036)
-![Tests](https://img.shields.io/badge/tests-16%2F16_passing-009966)
+![Tests](https://img.shields.io/badge/tests-18%2F18_passing-009966)
 
 <sub>ET AI Hackathon 2026 · Problem Statement 5 · Team: Suhani · Parth · Krishna · Bind</sub>
 
@@ -27,7 +29,7 @@ where to send inspectors · and what **you** personally should do — in your la
 
 ---
 
-> ⏱️ **Judging in a hurry?** Open the **[live citizen app](https://vayumitra-advisory.onrender.com)** (free-tier server — first load may take ~40s to wake, then it's fast), ask *"can my child play outside this evening?"*, tap **हिं** for Hindi, and tap **📖 sources** under any answer. That's Features 1+2+4 working end-to-end, deployed.
+> ⏱️ **Judging in a hurry?** Open the **[live citizen app](https://vayumitra-advisory.onrender.com)**, ask *"can my child play outside this evening?"*, tap **हिं** for Hindi, and tap **sources** under any answer — real forecasts for **209 named Delhi wards**, straight from the trained pipeline. Then open the **[operator dashboard](https://airgrid-dashboard.onrender.com)** → *Enforcement* for the live ward-deployment plan. That's Features 1–4 working end-to-end, deployed on real data.
 
 ---
 
@@ -45,11 +47,13 @@ India's cities *measure* air pollution; they rarely *act* on it in time. Reading
 
 | # | Feature | What it does | Status |
 |---|---------|--------------|:------:|
-| 1 | **Hyperlocal AQI Forecasting** | 24/48/72-hour AQI per ~1 km cell — XGBoost forecasters + a spatial estimator predict air quality *where there are no sensors* | ✅ trained |
-| 2 | **Geospatial Source Attribution** | Per cell: traffic vs industry vs construction %, with **confidence scores** and **upwind-corridor evidence** (wind + land use + OSM) | ✅ built |
-| 3 | **Enforcement Intelligence** | Severity × attribution × persistence → a **ranked inspector-deployment list** with evidence strings and recommended actions | ✅ built |
-| 4 | **Citizen Health Advisory** 🌟 | **VayuMitra** — a multilingual (English/हिन्दी), voice-enabled assistant giving persona-specific advice (child · elderly · asthma · outdoor worker · pregnant), grounded in **CPCB · SAFAR · WHO · GRAP** citations | ✅ **deployed** |
+| 1 | **Hyperlocal AQI Forecasting** | 24/48/72-hour AQI per ~1 km cell — XGBoost forecasters + a spatial estimator predict air quality *where there are no sensors* | ✅ **live** |
+| 2 | **Geospatial Source Attribution** | Per cell: traffic vs industry vs construction %, with **confidence scores** and **upwind-corridor evidence** (wind + land use + OSM) | ✅ **live** |
+| 3 | **Enforcement Intelligence** | Severity × attribution × persistence → a **ranked ward-deployment plan** (which team, which ward, in what order) with evidence strings | ✅ **live** |
+| 4 | **Citizen Health Advisory** 🌟 | **VayuMitra** — a multilingual (English/हिन्दी), voice-enabled assistant giving persona-specific advice (child · elderly · asthma · outdoor worker · pregnant), grounded in **CPCB · SAFAR · WHO · GRAP** citations | ✅ **live** |
 | 5 | **Multi-City Comparison** | Same pipeline, second city (Mumbai) from one config block — band distribution, source mix, modelled intervention impact | ✅ built |
+
+**On real data:** the deployed system serves the actual trained-pipeline output committed in `data/` — **1,600 one-km grid cells × 3 horizons**, aggregated to **209 named Delhi wards** (MCD boundaries), with a ranked deployment plan across all wards. Ask VayuMitra about *Chhawla* or *Narela* — those are real wards with real forecasts. Mumbai remains a labeled sample proving the multi-city architecture.
 
 ## See it
 
@@ -128,7 +132,7 @@ cd frontend && npm install && npm run dev
 # → http://localhost:8080
 ```
 
-**Tests:** `python tests/test_advisory.py` → 16/16 offline (no keys, no network needed).
+**Tests:** `python tests/test_advisory.py` → 18/18 offline (no keys, no network needed; pass on real and mock data).
 
 ## API at a glance
 
@@ -137,7 +141,9 @@ cd frontend && npm install && npm run dev
 | `GET /api/v1/forecasts` | 1 | 24/48/72h AQI per cell |
 | `GET /api/v1/attribution` | 2 | source %, confidence, evidence |
 | `GET /api/v1/enforcement` | 3 | ranked action list |
-| `GET /wards` | 1+2 | per-ward AQI + band + dominant source |
+| `GET /wards` | 1+2 | 209 real wards: AQI + band + dominant source |
+| `GET /deployment` | 3 | ranked ward-deployment plan (team + score per ward) |
+| `GET /enforcement/top` | 3 | top-20 enforcement targets with evidence |
 | `GET /advisory` · `POST /chat` | 4 | cited, persona-specific advice (EN/HI) |
 | `GET /tts` | 4 | streamed neural speech |
 | `GET /compare` | 5 | multi-city summary + intervention model |
@@ -155,9 +161,10 @@ cd frontend && npm install && npm run dev
 ├── frontend/             # React 19 operator dashboard (TanStack Start)
 │   └── advisory_demo.html  # VayuMitra citizen app (self-contained)
 ├── config/city.yaml      # THE parameterisation: add a city = add a config block
-├── data/mock/            # committed samples — everything runs with zero live data
+├── data/                 # REAL pipeline output (forecasts, attribution, deployment)
+│   └── mock/             # committed samples — everything still runs with zero data
 ├── PRODUCT.md · DESIGN.md  # our design system ("The Public Health Bulletin")
-└── tests/                # 16 offline tests
+└── tests/                # 18 offline tests (pass on real AND mock data)
 ```
 
 ## Honesty notes (what we claim vs. don't)
