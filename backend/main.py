@@ -48,9 +48,18 @@ from backend.advisory_api import router as advisory_router
 app.include_router(advisory_router, tags=["Citizen Advisory (F4/F5)"])
 
 
+def _citizen_ui_path() -> str:
+    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "frontend", "advisory_demo.html")
+
+
+@app.get("/", include_in_schema=False)
+def home():
+    """The public root IS the citizen app (the deployed URL judges open)."""
+    return FileResponse(_citizen_ui_path())
+
+
 @app.get("/citizen", include_in_schema=False)
 def citizen_ui():
-    """Serve the WhatsApp-style citizen advisory chat UI."""
-    ui = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      "frontend", "advisory_demo.html")
-    return FileResponse(ui)
+    """Serve the citizen advisory chat UI (alias kept for links/embeds)."""
+    return FileResponse(_citizen_ui_path())
