@@ -1,0 +1,21 @@
+cell_id,lat,lon,max_priority,max_aqi,dominant_source,action,evidence,rank
+544,28.566667,77.169231,69.75,186.3,Traffic/Roads,Deploy traffic police,"AQI=186.3, source=Traffic/Roads (68.1%), confidence=75%",1
+759,28.630769,77.4,68.94333333333333,164.7,Traffic/Roads,Deploy traffic police,"AQI=161.3, source=Traffic/Roads (78.9%), confidence=81%",2
+832,28.65641,77.292308,68.68,189.6,Traffic/Roads,Deploy traffic police,"AQI=189.6, source=Traffic/Roads (61.8%), confidence=74%",3
+870,28.669231,77.261538,67.27,167.1,Traffic/Roads,Deploy traffic police,"AQI=167.1, source=Traffic/Roads (67.9%), confidence=79%",4
+659,28.605128,77.092308,66.81,164.6,Traffic/Roads,Deploy traffic police,"AQI=160.5, source=Traffic/Roads (68.9%), confidence=81%",5
+746,28.630769,77.2,66.11666666666666,186.6,Traffic/Roads,Deploy traffic police,"AQI=168.7, source=Traffic/Roads (65.6%), confidence=74%",6
+966,28.707692,76.892308,65.62666666666667,160.6,Industry,Inspect industrial units,"AQI=160.6, source=Industry (67.8%), confidence=76%",7
+913,28.682051,77.307692,65.58333333333334,189.6,Traffic/Roads,Deploy traffic police,"AQI=170.3, source=Traffic/Roads (64.4%), confidence=72%",8
+779,28.64359,77.092308,65.53,164.7,Traffic/Roads,Deploy traffic police,"AQI=164.7, source=Traffic/Roads (64.1%), confidence=76%",9
+98,28.425641,77.076923,65.50999999999999,183.9,Traffic/Roads,Deploy traffic police,"AQI=183.9, source=Traffic/Roads (59.5%), confidence=65%",10
+57,28.412821,77.061538,65.43,183.9,Traffic/Roads,Deploy traffic police,"AQI=183.9, source=Traffic/Roads (62.3%), confidence=62%",11
+218,28.464103,77.076923,64.61,189.9,Traffic/Roads,Deploy traffic police,"AQI=189.9, source=Traffic/Roads (51.4%), confidence=63%",12
+30,28.4,77.261538,64.57666666666667,168.1,Construction/Dust,Dust suppression,"AQI=168.1, source=Construction/Dust (64.7%), confidence=68%",13
+837,28.65641,77.369231,64.33333333333333,164.6,Traffic/Roads,Deploy traffic police,"AQI=142.4, source=Traffic/Roads (70.1%), confidence=83%",14
+780,28.64359,77.107692,64.25,164.7,Traffic/Roads,Deploy traffic police,"AQI=164.7, source=Traffic/Roads (60.0%), confidence=74%",15
+137,28.438462,77.061538,64.06333333333333,163.4,Traffic/Roads,Deploy traffic police,"AQI=146.3, source=Traffic/Roads (70.4%), confidence=78%",16
+794,28.64359,77.323077,63.970000000000006,201.9,Industry,Inspect industrial units,"AQI=201.9, source=Industry (47.1%), confidence=55%",17
+838,28.65641,77.384615,63.83333333333333,164.6,Traffic/Roads,Deploy traffic police,"AQI=164.6, source=Traffic/Roads (62.7%), confidence=69%",18
+778,28.64359,77.076923,63.74,165.0,Traffic/Roads,Deploy traffic police,"AQI=165.0, source=Traffic/Roads (62.0%), confidence=69%",19
+791,28.64359,77.276923,63.71666666666667,142.3,Traffic/Roads,Deploy traffic police,"AQI=138.1, source=Traffic/Roads (70.7%), confidence=83%",20
