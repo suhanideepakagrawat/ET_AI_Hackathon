@@ -11,6 +11,7 @@ import {
   HorizonSwitch,
   HorizonTriplet,
   HORIZON_LABEL,
+  SourceStrip,
 } from "@/components/charts";
 import { MethodPanel } from "@/components/HowItWorks";
 import {
@@ -26,7 +27,13 @@ import {
   type Horizon,
   type SourceKey,
 } from "@/lib/air-data";
-import { wardAqiAt, wardsQuery, type LiveWard } from "@/lib/api";
+import {
+  deploymentQuery,
+  wardAqiAt,
+  wardsQuery,
+  type DeploymentRow,
+  type LiveWard,
+} from "@/lib/api";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -38,8 +45,18 @@ export const Route = createFileRoute("/dashboard")({
   component: Dashboard,
 });
 
+// What the detail panel is focused on: a real live ward (picked by name) or a
+// sample-scene grid cell (clicked on the map).
+type Selection = { kind: "ward"; ward: LiveWard } | { kind: "cell"; cell: Cell };
+
+const LIVE_SOURCE_META: Record<string, { label: string; color: string }> = {
+  traffic: { label: "Traffic", color: "var(--source-traffic)" },
+  industry: { label: "Industry", color: "var(--source-industry)" },
+  construction: { label: "Construction dust", color: "var(--source-construction)" },
+};
+
 function Dashboard() {
-  const [selected, setSelected] = useState<Cell | null>(CELLS.find((c) => c.id === "c-5-2") ?? null);
+  const [sel, setSel] = useState<Selection | null>(null);
   const [horizon, setHorizon] = useState<Horizon>("24");
   const [showMethod, setShowMethod] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<SourceKey | "all">("all");
@@ -54,6 +71,20 @@ function Dashboard() {
   const live = useQuery(wardsQuery());
   const liveWards: LiveWard[] | null =
     live.isSuccess && live.data.wards.length > 0 ? live.data.wards : null;
+  const deployment = useQuery(deploymentQuery);
+  const deployRows: DeploymentRow[] =
+    deployment.isSuccess && deployment.data.available ? deployment.data.items : [];
+
+  // Default focus: the worst live ward (a real place with real numbers), or
+  // the sample cell when the API is unreachable.
+  const active: Selection | null =
+    sel ??
+    (liveWards
+      ? { kind: "ward", ward: liveWards[0] }
+      : (() => {
+          const cell = CELLS.find((c) => c.id === "c-5-2");
+          return cell ? { kind: "cell", cell } : null;
+        })());
 
   return (
     <AppShell>
@@ -75,7 +106,13 @@ function Dashboard() {
         <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[260px_1fr]">
           {/* Sidebar */}
           <aside className="hidden overflow-y-auto border-r border-border bg-bg-secondary md:block">
-            <LiveWardRail horizon={horizon} liveWards={liveWards} pending={live.isPending} />
+            <WardFinder
+              horizon={horizon}
+              liveWards={liveWards}
+              pending={live.isPending}
+              activeWardId={active?.kind === "ward" ? active.ward.zone_id : null}
+              onPick={(w) => setSel({ kind: "ward", ward: w })}
+            />
             <FilterSection title="Layers">
               {[
                 ["windCorridor", "Wind corridor"],
@@ -137,21 +174,32 @@ function Dashboard() {
 
           {/* Map + detail */}
           <section className="grid min-h-0 grid-rows-[1fr_auto] overflow-hidden">
-            <div className="relative min-h-0 overflow-hidden border-b border-border">
+            <div className="relative min-h-[260px] overflow-hidden border-b border-border">
               <MapView
-                selectedId={selected?.id}
-                onSelect={setSelected}
+                selectedId={active?.kind === "cell" ? active.cell.id : undefined}
+                onSelect={(cell) => setSel({ kind: "cell", cell })}
                 layers={layers}
                 sourceFilter={sourceFilter}
                 horizon={horizon}
               />
               <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-1">
-                <div className="chip pointer-events-auto"><span className="h-1.5 w-1.5 rounded-full bg-accent cell-pulse" /> Model grid · sample scene (live wards in the rail)</div>
+                <div className="chip pointer-events-auto"><span className="h-1.5 w-1.5 rounded-full bg-accent cell-pulse" /> Model grid · sample scene — pick a real ward at left</div>
                 <div className="mono text-[11px] text-text-mute">Showing +{horizon} h · {HORIZON_LABEL[horizon].toLowerCase()}</div>
               </div>
             </div>
 
-            <DetailPanel cell={selected} horizon={horizon} onHorizon={setHorizon} />
+            <div className="max-h-[46vh] overflow-y-auto">
+              {active?.kind === "ward" ? (
+                <WardDetail
+                  ward={active.ward}
+                  horizon={horizon}
+                  onHorizon={setHorizon}
+                  deployRows={deployRows}
+                />
+              ) : (
+                <CellDetail cell={active?.cell ?? null} horizon={horizon} onHorizon={setHorizon} />
+              )}
+            </div>
           </section>
         </div>
       </div>
@@ -260,28 +308,54 @@ function PulseStrip({
 }
 
 /* ------------------------------------------------------------------ */
-/* Ward rail — live per-horizon values, re-ranked on switch            */
+/* Ward finder — search all 209 real wards; worst-first when idle      */
 /* ------------------------------------------------------------------ */
 
-function LiveWardRail({
+function WardFinder({
   horizon,
   liveWards,
   pending,
+  activeWardId,
+  onPick,
 }: {
   horizon: Horizon;
   liveWards: LiveWard[] | null;
   pending: boolean;
+  activeWardId: string | null;
+  onPick: (w: LiveWard) => void;
 }) {
+  const [query, setQuery] = useState("");
+
   const rows = useMemo(() => {
     if (!liveWards) return null;
-    return [...liveWards]
-      .map((w) => ({ id: w.zone_id, name: w.name, aqi: wardAqiAt(w, horizon) }))
-      .sort((a, b) => b.aqi - a.aqi)
-      .slice(0, 8);
-  }, [liveWards, horizon]);
+    const q = query.trim().toLowerCase();
+    const pool = q
+      ? liveWards.filter((w) => w.name.toLowerCase().includes(q))
+      : [...liveWards].sort((a, b) => wardAqiAt(b, horizon) - wardAqiAt(a, horizon));
+    return pool.slice(0, q ? 10 : 8);
+  }, [liveWards, query, horizon]);
+
+  const title = !rows
+    ? "Ward feed"
+    : query.trim()
+      ? `Matches · ${rows.length}${rows.length === 10 ? "+" : ""}`
+      : `Worst wards · live · +${horizon} h`;
 
   return (
-    <FilterSection title={rows ? `Worst wards · live · +${horizon} h` : "Ward feed"}>
+    <div className="border-b border-border p-4">
+      <label htmlFor="ward-search" className="mono mb-2 block text-[11px] text-text-mute">
+        Find your ward · {liveWards ? `${liveWards.length} live` : "connecting"}
+      </label>
+      <input
+        id="ward-search"
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Type a ward — Narela, Dabri…"
+        disabled={!liveWards}
+        className="mb-3 w-full rounded-full border border-border bg-panel px-3.5 py-2 text-[12.5px] text-foreground placeholder:text-text-mute focus:border-accent-dim focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-glow)]"
+      />
+      <div className="mono mb-2 text-[11px] text-text-mute">{title}</div>
       {pending && (
         <div className="mono px-2 py-1.5 text-[11px] text-text-mute">Connecting to pipeline…</div>
       )}
@@ -290,26 +364,48 @@ function LiveWardRail({
           API unreachable — map shows the bundled sample scene.
         </div>
       )}
-      {rows && (
-        <ul className="space-y-1">
+      {rows && rows.length === 0 && (
+        <div className="mono px-2 py-1.5 text-[11px] text-text-mute">
+          No ward matches “{query.trim()}”.
+        </div>
+      )}
+      {rows && rows.length > 0 && (
+        <ul className="space-y-0.5">
           {rows.map((w) => {
-            const cat = aqiCategory(w.aqi);
+            const aqi = wardAqiAt(w, horizon);
+            const cat = aqiCategory(aqi);
+            const isActive = w.zone_id === activeWardId;
             return (
-              <li key={w.id} className="flex items-center justify-between gap-2 px-2 py-1">
-                <span className="truncate text-[12px] text-text-dim">{w.name}</span>
-                <span
-                  className="mono shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold"
-                  style={{ background: cat.color, color: cat.text }}
-                  title={cat.label}
+              <li key={w.zone_id}>
+                <button
+                  onClick={() => onPick(w)}
+                  aria-pressed={isActive}
+                  className={`flex w-full items-center justify-between gap-2 rounded-[4px] px-2 py-1.5 text-left transition-colors ${
+                    isActive ? "bg-surface-1" : "hover:bg-surface-1/60"
+                  }`}
                 >
-                  {w.aqi}
-                </span>
+                  <span className={`min-w-0 truncate text-[12px] ${isActive ? "font-bold text-accent" : "text-text-dim"}`}>
+                    {w.name}
+                  </span>
+                  <span
+                    className="mono shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold"
+                    style={{ background: cat.color, color: cat.text }}
+                    title={cat.label}
+                  >
+                    {aqi}
+                  </span>
+                </button>
               </li>
             );
           })}
         </ul>
       )}
-    </FilterSection>
+      {rows && (
+        <div className="mono mt-2 text-[11px] text-text-mute">
+          Tap a ward — the panel below shows its real forecast.
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -337,10 +433,140 @@ function ToggleRow({ label, on, onChange }: { label: string; on: boolean; onChan
 }
 
 /* ------------------------------------------------------------------ */
-/* Cell detail — forecast trajectory + attribution + actions           */
+/* Shared bits for the two detail modes                                */
 /* ------------------------------------------------------------------ */
 
-function DetailPanel({
+// Legend rows that cannot overlap: label truncates, value never shrinks.
+function MixLegend({ items }: { items: { key: string; label: string; color: string; pct: number }[] }) {
+  return (
+    <div className="mono mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-[11px] sm:grid-cols-2">
+      {items.map((m) => (
+        <div key={m.key} className="flex items-center justify-between gap-2" title={`${m.label} · ${Math.round(m.pct)}%`}>
+          <span className="flex min-w-0 items-center gap-2 text-text-dim">
+            <span className="h-1.5 w-1.5 shrink-0" style={{ background: m.color }} />
+            <span className="truncate whitespace-nowrap">{m.label}</span>
+          </span>
+          <span className="shrink-0 text-foreground">{Math.round(m.pct)}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const detailGrid =
+  "grid grid-cols-1 gap-px bg-border sm:grid-cols-2 xl:grid-cols-[280px_230px_minmax(240px,1fr)_280px]";
+
+/* ------------------------------------------------------------------ */
+/* Ward detail — a REAL ward: live forecast, sources, deployment       */
+/* ------------------------------------------------------------------ */
+
+function WardDetail({
+  ward,
+  horizon,
+  onHorizon,
+  deployRows,
+}: {
+  ward: LiveWard;
+  horizon: Horizon;
+  onHorizon: (h: Horizon) => void;
+  deployRows: DeploymentRow[];
+}) {
+  const aqiNow = wardAqiAt(ward, horizon);
+  const values = Object.fromEntries(HORIZONS.map((h) => [h, wardAqiAt(ward, h)])) as Record<Horizon, number>;
+  const mix = ward.sources
+    ? Object.entries(ward.sources).map(([k, v]) => ({
+        key: k,
+        label: LIVE_SOURCE_META[k]?.label ?? k,
+        color: LIVE_SOURCE_META[k]?.color ?? "var(--text-mute)",
+        pct: v as number,
+      }))
+    : [];
+  const wardNo = ward.zone_id.replace(/^W/, "");
+  const deploy =
+    deployRows.find((d) => d.ward_name?.toLowerCase() === ward.name.toLowerCase()) ??
+    deployRows.find((d) => d.ward_no?.replace(/\.0$/, "") === wardNo);
+
+  return (
+    <div className={detailGrid}>
+      {/* Identity */}
+      <div className="bg-bg-secondary p-5">
+        <div className="mono text-[11px] text-text-mute">Ward {wardNo} · live pipeline</div>
+        <div className="mt-2 text-xl font-bold">{ward.name}</div>
+        <div className="mt-4 flex items-center gap-3">
+          <AqiBall aqi={aqiNow} size={64} />
+          <div>
+            <BandBadge aqi={aqiNow} />
+            <div className="mono mt-1 text-[11px] text-text-mute">CPCB band · +{horizon} h</div>
+            <div className="mt-1"><DeltaTag now={aqiNow} base={values["24"]} /></div>
+          </div>
+        </div>
+        <div className="mt-4 border-t border-border pt-3 mono text-[11px] text-text-mute">
+          {ward.lat?.toFixed(3)}°N {ward.lon?.toFixed(3)}°E
+          {ward.confidence != null && <> · confidence {Math.round(ward.confidence * 100)}%</>}
+        </div>
+      </div>
+
+      {/* Real 72-hour trajectory */}
+      <div className="bg-bg-secondary p-5">
+        <div className="mono text-[11px] text-text-mute">72-hour forecast · trained models</div>
+        <div className="mt-2">
+          <HorizonTriplet values={values} active={horizon} onSelect={onHorizon} height={64} />
+        </div>
+        <div className="mono mt-1 text-[11px] text-text-mute">Tap a bar to switch the whole view.</div>
+      </div>
+
+      {/* Attribution */}
+      <div className="bg-bg-secondary p-5">
+        <div className="mono text-[11px] text-text-mute">Likely source</div>
+        <div className="mt-2 text-lg font-bold">{ward.dominant_source ?? "—"}</div>
+        {ward.dominant_source_pct > 0 && (
+          <div className="mono mt-0.5 text-[11px] text-text-mute">
+            {Math.round(ward.dominant_source_pct)}% of this ward's load
+          </div>
+        )}
+        {mix.length > 0 && (
+          <div className="mt-4">
+            <div className="mono mb-2 text-[11px] text-text-mute">Source mix</div>
+            <SourceStrip mix={mix} height={12} />
+            <MixLegend items={mix} />
+          </div>
+        )}
+      </div>
+
+      {/* Enforcement cross-link */}
+      <div className="bg-bg-secondary p-5">
+        <div className="mono text-[11px] text-text-mute">Deployment plan</div>
+        {deploy ? (
+          <div className="mt-2">
+            <div className="text-[14px] font-bold">
+              #{deploy.rank} in today's queue
+            </div>
+            <div className="mono mt-1 space-y-0.5 text-[11px] text-text-mute">
+              <div>{deploy.hotspots} hotspot cells · score {Math.round(deploy.deployment_score ?? 0)}</div>
+              <div>peak AQI {Math.round(deploy.max_aqi ?? 0)}</div>
+            </div>
+            {deploy.recommended_team && (
+              <div className="mt-2 inline-block rounded-md bg-surface-1 px-2 py-1 text-[12.5px] text-text-dim">
+                → {deploy.recommended_team}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="mt-2 text-[12.5px] text-text-dim">
+            Not in the top-30 deployment queue at this run — inspection capacity goes to
+            worse wards first.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Cell detail — sample-scene cell with evidence story                 */
+/* ------------------------------------------------------------------ */
+
+function CellDetail({
   cell,
   horizon,
   onHorizon,
@@ -359,19 +585,24 @@ function DetailPanel({
     );
   }
   const aqiNow = cellAqi(cell, horizon);
-  const cat = aqiCategory(aqiNow);
   const values = Object.fromEntries(HORIZONS.map((h) => [h, cellAqi(cell, h)])) as Record<Horizon, number>;
   const enforcement = ENFORCEMENT_TARGETS.filter((e) => e.cellId === cell.id || e.ward === cell.ward);
+  const mix = (Object.keys(SOURCE_LABELS) as SourceKey[]).map((k) => ({
+    key: k,
+    label: SOURCE_LABELS[k],
+    color: SOURCE_COLORS[k],
+    pct: cell.attribution[k] * 100,
+  }));
 
   return (
-    <div className="grid grid-cols-1 gap-px bg-border md:grid-cols-[300px_240px_1fr_300px]">
+    <div className={detailGrid}>
       {/* AQI + ward */}
       <div className="bg-bg-secondary p-5">
         <div className="mono text-[11px] text-text-mute">
-          {cell.wardCode} · Cell {cell.id}
+          {cell.wardCode} · Cell {cell.id} · sample scene
         </div>
         <div className="mt-2 text-xl font-bold">{cell.ward}</div>
-        <div className="mt-5 flex items-center gap-3">
+        <div className="mt-4 flex items-center gap-3">
           <AqiBall aqi={aqiNow} size={64} />
           <div>
             <BandBadge aqi={aqiNow} />
@@ -379,58 +610,39 @@ function DetailPanel({
             <div className="mt-1"><DeltaTag now={aqiNow} base={values["24"]} /></div>
           </div>
         </div>
-        <div className="mt-5 border-t border-border pt-3 mono text-[11px] text-text-mute">
+        <div className="mt-4 border-t border-border pt-3 mono text-[11px] text-text-mute">
           Coord · 28.{600 + cell.y * 8}°N 77.{100 + cell.x * 6}°E
         </div>
       </div>
 
-      {/* 72-hour trajectory — the prediction, visible */}
+      {/* Trajectory */}
       <div className="bg-bg-secondary p-5">
         <div className="mono text-[11px] text-text-mute">72-hour forecast</div>
         <div className="mt-2">
-          <HorizonTriplet values={values} active={horizon} onSelect={onHorizon} height={72} />
+          <HorizonTriplet values={values} active={horizon} onSelect={onHorizon} height={64} />
         </div>
         <div className="mono mt-1 text-[11px] text-text-mute">Tap a bar to switch the whole view.</div>
       </div>
 
       {/* Attribution */}
       <div className="bg-bg-secondary p-5">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-baseline justify-between gap-2">
           <div className="mono text-[11px] text-text-mute">Likely source</div>
-          <div className="mono text-[11px] text-text-mute">
+          <div className="mono shrink-0 text-[11px] text-text-mute">
             Confidence · {Math.round(cell.confidence * 100)}%
           </div>
         </div>
         <div className="mt-2 flex items-center gap-3">
-          <span className="h-3 w-3" style={{ background: SOURCE_COLORS[cell.dominantSource] }} />
-          <span className="font-display text-xl">{SOURCE_LABELS[cell.dominantSource]}</span>
+          <span className="h-3 w-3 shrink-0" style={{ background: SOURCE_COLORS[cell.dominantSource] }} />
+          <span className="font-display text-lg">{SOURCE_LABELS[cell.dominantSource]}</span>
         </div>
-        <p className="mt-3 max-w-md text-sm text-text-dim">
+        <p className="mt-3 max-w-md text-[12.5px] text-text-dim">
           {SOURCE_EVIDENCE[cell.dominantSource]}
         </p>
-
-        <div className="mt-5">
+        <div className="mt-4">
           <div className="mono mb-2 text-[11px] text-text-mute">Source mix</div>
-          <div className="flex h-3 overflow-hidden border border-border">
-            {(Object.keys(SOURCE_LABELS) as SourceKey[]).map((k) => (
-              <div
-                key={k}
-                title={`${SOURCE_LABELS[k]} · ${Math.round(cell.attribution[k] * 100)}%`}
-                style={{ width: `${cell.attribution[k] * 100}%`, background: SOURCE_COLORS[k] }}
-              />
-            ))}
-          </div>
-          <div className="mono mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-[11px]">
-            {(Object.keys(SOURCE_LABELS) as SourceKey[]).map((k) => (
-              <div key={k} className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-text-dim">
-                  <span className="h-1.5 w-1.5" style={{ background: SOURCE_COLORS[k] }} />
-                  {SOURCE_LABELS[k]}
-                </span>
-                <span className="text-foreground">{Math.round(cell.attribution[k] * 100)}%</span>
-              </div>
-            ))}
-          </div>
+          <SourceStrip mix={mix} height={12} />
+          <MixLegend items={mix} />
         </div>
       </div>
 
@@ -441,9 +653,9 @@ function DetailPanel({
           <ul className="mt-3 space-y-3">
             {enforcement.map((e) => (
               <li key={e.id}>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <span className="font-display text-sm">{e.name}</span>
-                  <span className="mono text-[11px] text-accent">P{e.priority}</span>
+                  <span className="mono shrink-0 text-[11px] text-accent">P{e.priority}</span>
                 </div>
                 <div className="mono text-[11px] text-text-mute">{e.type}</div>
                 <div className="mt-1 text-[12px] text-text-dim">{e.action}</div>
