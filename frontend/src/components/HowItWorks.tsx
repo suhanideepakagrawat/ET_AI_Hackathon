@@ -32,7 +32,8 @@ export const METHODS = {
         body: "Every number ships with a confidence score. Low confidence is shown, never hidden.",
       },
     ],
-    honest: "A forecast, not a measurement — model output from real CPCB data, judged against simply assuming today repeats.",
+    honest:
+      "Validated, not vibes (Leave-One-Station-Out): spatial estimates beat IDW interpolation by 8% and nearest-station by 23%. Forecasts beat persistence at +48h/+72h; at +24h persistence stays competitive — a known property of day-ahead AQI — and our error (~43 AQI ≈ half a CPCB band) remains actionable.",
   },
   attribution: {
     heading: "How we name the source, in plain words",

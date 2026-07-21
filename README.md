@@ -103,6 +103,28 @@ flowchart LR
 
 **The honest split:** three small numeric models are **trained** (XGBoost — spatial estimation, forecasting, attribution features); language is **called** (Llama-3.3 via Groq, with deterministic fallbacks). Attribution is *directional evidence with confidence scores*, not exact plume physics — and the UI says so.
 
+## Validation — measured, not claimed
+
+All numbers from held-out validation ([`data/metrics.json`](data/metrics.json), served live at [`/metrics`](https://vayumitra-advisory.onrender.com/metrics)).
+
+**Spatial estimation** (Leave-One-Station-Out — predict each station's AQI using only the *other* stations):
+
+| Method | RMSE | vs. our model |
+|---|---:|---:|
+| **Our spatial model** | **85.8** | — |
+| IDW interpolation (standard practice) | 93.3 | **+8.0% better** |
+| Nearest station (what a citizen sees today) | 111.9 | **+23.3% better** |
+
+**Forecasting** (RMSE vs. persistence — "assume today repeats"):
+
+| Horizon | Model | Persistence | Verdict |
+|---|---:|---:|---|
+| +24 h | 43.0 | 41.3 | persistence competitive (−4.2%) |
+| +48 h | **46.6** | 47.5 | model **+2.0%** |
+| +72 h | **49.0** | 50.0 | model **+2.0%** |
+
+We publish the 24-hour number even though persistence edges it — beating persistence at day-1 AQI is a known hard problem, and an RMSE of ~43 AQI (≈ half a CPCB band) still supports the band-level guidance the advisory gives. Where planning actually happens (2–3 days out, deployment and GRAP decisions), the trained models win.
+
 ## Why VayuMitra is different
 
 Most AQI apps show a number and a color. VayuMitra answers *your* question:
@@ -149,6 +171,7 @@ cd frontend && npm install && npm run dev
 | `GET /tts` | 4 | streamed neural speech |
 | `GET /compare` | 5 | multi-city summary + intervention model |
 | `GET /sources` | 4 | the authority registry (CPCB · SAFAR · WHO · GRAP · NCAP) |
+| `GET /metrics` | 1 | honest validation numbers (LOSO + vs-persistence) |
 
 ## Repository map
 

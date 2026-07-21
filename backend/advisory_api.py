@@ -152,6 +152,23 @@ def enforcement_top() -> dict:
     return out
 
 
+@router.get("/metrics")
+def model_metrics() -> dict:
+    """Honest validation numbers from the training pipeline (data/metrics.json).
+
+    Spatial estimator: Leave-One-Station-Out RMSE vs IDW / nearest-station
+    baselines. Forecasters: RMSE vs a persistence baseline per horizon —
+    including the horizon where persistence wins, because that's the truth.
+    """
+    import json as _json
+
+    path = _REPO_ROOT / "data" / "metrics.json"
+    try:
+        return {"available": True, "metrics": _json.loads(path.read_text(encoding="utf-8"))}
+    except Exception:
+        return {"available": False, "metrics": None}
+
+
 @router.get("/deployment")
 def deployment_plan(limit: int = Query(default=25)) -> dict:
     """Ward-level inspector deployment plan (Feature 3): where to send teams."""
