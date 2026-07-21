@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { MapView } from "@/components/MapView";
 import { MethodPanel } from "@/components/HowItWorks";
 import { aqiCategory, CELLS, ENFORCEMENT_TARGETS, type Cell } from "@/lib/air-data";
-import { deploymentQuery } from "@/lib/api";
+import { deploymentQuery, wardsQuery } from "@/lib/api";
 
 export const Route = createFileRoute("/enforcement")({
   head: () => ({
@@ -19,8 +19,10 @@ export const Route = createFileRoute("/enforcement")({
 
 function Enforcement() {
   const dep = useQuery(deploymentQuery);
+  const wards = useQuery(wardsQuery());
   const live = dep.isSuccess && dep.data.available && dep.data.items.length > 0;
   const [showMethod, setShowMethod] = useState(false);
+  const [query, setQuery] = useState("");
 
   const sorted = [...ENFORCEMENT_TARGETS].sort((a, b) => b.priority - a.priority);
   const [selectedId, setSelectedId] = useState<string>(sorted[0].id);
@@ -42,9 +44,20 @@ function Enforcement() {
     ? Math.max(...dep.data!.items.map((w) => w.deployment_score ?? 0), 1)
     : 1;
 
+  // Ward search over the live queue; when a real ward exists but isn't in the
+  // top-30 plan, say so honestly instead of showing an empty list.
+  const q = query.trim().toLowerCase();
+  const queue = live
+    ? dep.data!.items.filter((w) => !q || w.ward_name?.toLowerCase().includes(q))
+    : [];
+  const offQueueMatches =
+    live && q && queue.length === 0 && wards.isSuccess
+      ? wards.data.wards.filter((w) => w.name.toLowerCase().includes(q)).slice(0, 3)
+      : [];
+
   return (
     <AppShell>
-      <div className="grid h-[calc(100vh-57px)] grid-cols-1 md:grid-cols-[1fr_440px]">
+      <div className="grid h-[calc(100vh-57px)] grid-cols-1 md:grid-cols-[1fr_500px] xl:grid-cols-[1fr_560px]">
         <section className="min-h-0 overflow-hidden border-r border-border">
           <MapView
             selectedId={cell?.id}
@@ -72,6 +85,19 @@ function Enforcement() {
                 ))}
               </div>
             )}
+            {live && (
+              <div className="mt-3">
+                <label htmlFor="enf-ward-search" className="sr-only">Search the deployment queue by ward</label>
+                <input
+                  id="enf-ward-search"
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Find a ward in the queue — Chhawla, Bawana…"
+                  className="w-full rounded-full border border-border bg-panel px-3.5 py-2 text-[12.5px] text-foreground placeholder:text-text-mute focus:border-accent-dim focus:outline-none focus:ring-2 focus:ring-[color:var(--accent-glow)]"
+                />
+              </div>
+            )}
             <button
               onClick={() => setShowMethod((s) => !s)}
               aria-expanded={showMethod}
@@ -90,9 +116,40 @@ function Enforcement() {
             )}
           </div>
 
+          {live && queue.length === 0 && (
+            <div className="border-b border-border px-5 py-4">
+              {offQueueMatches.length > 0 ? (
+                <div>
+                  {offQueueMatches.map((w) => {
+                    const cat = aqiCategory(w.aqi);
+                    return (
+                      <div key={w.zone_id} className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold">{w.name}</span>
+                        <span
+                          className="mono shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold"
+                          style={{ background: cat.color, color: cat.text }}
+                        >
+                          {w.aqi}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  <p className="text-[12.5px] text-text-dim">
+                    Real ward, but not in today's top-30 deployment queue — inspection capacity
+                    goes to worse wards first. See its forecast on the dashboard's ward finder.
+                  </p>
+                </div>
+              ) : (
+                <p className="mono text-[11px] text-text-mute">
+                  No ward matches “{query.trim()}”.
+                </p>
+              )}
+            </div>
+          )}
+
           {live ? (
             <ul>
-              {dep.data.items.map((w) => {
+              {queue.map((w) => {
                 const cat = aqiCategory(w.max_aqi ?? 0);
                 return (
                   <li key={`${w.rank}-${w.ward_no}`} className="border-b border-border px-5 py-4">
