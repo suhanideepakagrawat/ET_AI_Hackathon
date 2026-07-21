@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { MapView } from "@/components/MapView";
+import { DelhiWardMap } from "@/components/DelhiWardMap";
 import { LogoMark } from "@/components/AppShell";
 import {
   BandDistribution,
@@ -30,6 +30,9 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
+  const live = useQuery(wardsQuery());
+  const heroWards = live.isSuccess && live.data.wards.length > 0 ? live.data.wards : null;
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Top bar */}
@@ -48,62 +51,72 @@ function Landing() {
         </nav>
         <Link
           to="/dashboard"
-          className="mono border border-accent px-3 py-1.5 text-[11px] text-accent hover:bg-accent hover:text-accent-foreground"
+          className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-[12px] font-semibold text-white hover:bg-[#064a42]"
         >
-          Open dashboard →
+          Open dashboard <span aria-hidden>→</span>
         </Link>
       </header>
 
-      {/* Hero — ambient map + thesis */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 opacity-70">
-          <MapView ambient height="100%" />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-bg-primary/60 via-bg-primary/30 to-bg-primary" />
+      {/* Hero — the claim on the left, the real city on the right */}
+      <section className="border-b border-border">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-10 md:pt-16 lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)]">
+          <div>
+            <div className="chip mb-6" style={{ color: "var(--accent)", borderColor: "var(--accent-dim)" }}>
+              <span className="h-1.5 w-1.5 rounded-full bg-accent cell-pulse" />
+              Delhi pilot · 209 wards live · English + हिन्दी
+            </div>
+            <h1 className="text-4xl font-bold leading-[1.08] tracking-tight md:text-5xl">
+              Delhi's air, 72 hours ahead.
+              <br />
+              <span className="text-accent">Ward by ward. Source by source.</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-base text-text-dim md:text-lg">
+              AirGrid turns the city's ~40 monitors into an intelligence layer:
+              a three-day forecast for every ward, the dominant polluter named with
+              evidence and confidence, deployment orders for inspection teams — and
+              health advice any family can act on, in English and हिन्दी.
+            </p>
 
-        <div className="relative z-10 mx-auto max-w-6xl px-6 pb-28 pt-24 md:pt-32">
-          <div className="chip mb-6" style={{ color: "var(--accent)", borderColor: "var(--accent-dim)" }}>
-            <span className="h-1.5 w-1.5 rounded-full bg-accent cell-pulse" />
-            Delhi pilot · 209 wards live · English + हिन्दी
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <a
+                href="#forecast"
+                className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-[#064a42]"
+              >
+                Explore the live forecast <span aria-hidden>↓</span>
+              </a>
+              <a
+                href="#vayumitra"
+                className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-accent-dim px-6 py-3 text-sm font-semibold text-accent hover:bg-accent hover:text-white"
+              >
+                Talk to VayuMitra
+              </a>
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center gap-2 px-2 py-3 text-sm font-semibold text-text-dim hover:text-foreground"
+              >
+                Operator dashboard →
+              </Link>
+            </div>
+
+            {/* Coordinate readout */}
+            <div className="mono mt-14 grid max-w-xl grid-cols-2 gap-x-8 gap-y-3 border-t border-border pt-6 text-[11px] text-text-mute sm:grid-cols-4">
+              <Readout k="Grid" v="1,600 × 1 km²" />
+              <Readout k="Horizon" v="24 / 48 / 72 h" />
+              <Readout k="Wards" v="209 named (MCD)" />
+              <Readout k="Models" v="3 trained XGBoost" />
+            </div>
           </div>
-          <h1 className="max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight md:text-6xl">
-            Air quality forecasts that name the source —
-            <span className="text-accent"> and where to act.</span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-base text-text-dim md:text-lg">
-            Every ward in Delhi carries a 24–72 hour AQI forecast, a dominant emission source
-            attributed with a confidence score, and the physical evidence behind that call.
-            And every citizen gets it as personal, health-band-cited advice in their language.
-          </p>
 
-          <div className="mt-10 flex flex-wrap items-center gap-4">
-            <a
-              href="#forecast"
-              className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-[#064a42]"
-            >
-              See the forecast move
-              <span aria-hidden>↓</span>
-            </a>
-            <a
-              href="#vayumitra"
-              className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-accent-dim px-6 py-3 text-sm font-semibold text-accent hover:bg-accent hover:text-white"
-            >
-              Talk to VayuMitra
-            </a>
-            <Link
-              to="/dashboard"
-              className="inline-flex items-center gap-2 px-2 py-3 text-sm font-semibold text-text-dim hover:text-foreground"
-            >
-              Operator dashboard →
-            </Link>
-          </div>
-
-          {/* Coordinate readout */}
-          <div className="mono mt-16 grid max-w-3xl grid-cols-2 gap-x-8 gap-y-3 border-t border-border pt-6 text-[11px] text-text-mute md:grid-cols-4">
-            <Readout k="Grid" v="1,600 × 1 km² cells" />
-            <Readout k="Horizon" v="24 / 48 / 72 h" />
-            <Readout k="Wards" v="209 named (MCD)" />
-            <Readout k="Models" v="3 trained XGBoost" />
+          {/* The real MCD ward map, colored by the live forecast */}
+          <div>
+            <div className="h-[380px] md:h-[480px]">
+              <DelhiWardMap liveWards={heroWards} horizon="24" ambient />
+            </div>
+            <p className="mono mt-3 text-center text-[11px] text-text-mute">
+              {heroWards
+                ? "Real MCD ward boundaries · colored by tomorrow's live forecast"
+                : "Real MCD ward boundaries · live colors load with the pipeline"}
+            </p>
           </div>
         </div>
       </section>
@@ -180,13 +193,13 @@ function Landing() {
           <div className="mt-10 flex flex-wrap justify-center gap-3">
             <Link
               to="/dashboard"
-              className="mono inline-flex items-center gap-2 border border-accent bg-accent px-6 py-3 text-xs text-accent-foreground hover:brightness-110"
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-[#064a42]"
             >
-              Open the dashboard →
+              Open the dashboard <span aria-hidden>→</span>
             </Link>
             <Link
               to="/attribution"
-              className="mono inline-flex items-center gap-2 border border-border px-6 py-3 text-xs text-text-dim hover:border-accent-dim hover:text-foreground"
+              className="inline-flex items-center gap-2 rounded-full border-[1.5px] border-accent-dim px-6 py-3 text-sm font-semibold text-accent hover:bg-accent hover:text-white"
             >
               City-wide trends
             </Link>

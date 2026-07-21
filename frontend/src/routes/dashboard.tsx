@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { DelhiWardMap } from "@/components/DelhiWardMap";
 import { MapView } from "@/components/MapView";
 import {
   AqiBall,
@@ -59,6 +60,7 @@ function Dashboard() {
   const [sel, setSel] = useState<Selection | null>(null);
   const [horizon, setHorizon] = useState<Horizon>("24");
   const [showMethod, setShowMethod] = useState(false);
+  const [mapMode, setMapMode] = useState<"wards" | "grid">("wards");
   const [sourceFilter, setSourceFilter] = useState<SourceKey | "all">("all");
   const [layers, setLayers] = useState({
     windCorridor: true,
@@ -174,17 +176,51 @@ function Dashboard() {
 
           {/* Map + detail */}
           <section className="grid min-h-0 grid-rows-[1fr_auto] overflow-hidden">
-            <div className="relative min-h-[260px] overflow-hidden border-b border-border">
-              <MapView
-                selectedId={active?.kind === "cell" ? active.cell.id : undefined}
-                onSelect={(cell) => setSel({ kind: "cell", cell })}
-                layers={layers}
-                sourceFilter={sourceFilter}
-                horizon={horizon}
-              />
-              <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-1">
-                <div className="chip pointer-events-auto"><span className="h-1.5 w-1.5 rounded-full bg-accent cell-pulse" /> Model grid · sample scene — pick a real ward at left</div>
-                <div className="mono text-[11px] text-text-mute">Showing +{horizon} h · {HORIZON_LABEL[horizon].toLowerCase()}</div>
+            <div className="relative min-h-[260px] overflow-hidden border-b border-border bg-bg-secondary">
+              {mapMode === "wards" && liveWards ? (
+                <DelhiWardMap
+                  liveWards={liveWards}
+                  horizon={horizon}
+                  selectedId={active?.kind === "ward" ? active.ward.zone_id : null}
+                  onPick={(w) => setSel({ kind: "ward", ward: w })}
+                  className="p-2"
+                />
+              ) : (
+                <MapView
+                  selectedId={active?.kind === "cell" ? active.cell.id : undefined}
+                  onSelect={(cell) => setSel({ kind: "cell", cell })}
+                  layers={layers}
+                  sourceFilter={sourceFilter}
+                  horizon={horizon}
+                />
+              )}
+              <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-2">
+                {liveWards && (
+                  <div className="pointer-events-auto inline-flex overflow-hidden rounded-full border border-border bg-panel p-0.5">
+                    {(
+                      [
+                        ["wards", "Delhi wards · real"],
+                        ["grid", "Model grid · sample"],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        onClick={() => setMapMode(mode)}
+                        aria-pressed={mapMode === mode}
+                        className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                          mapMode === mode ? "bg-accent text-white" : "text-text-dim hover:bg-surface-1 hover:text-foreground"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="mono text-[11px] text-text-mute">
+                  {mapMode === "wards" && liveWards
+                    ? `209 real wards · click any ward · +${horizon} h · ${HORIZON_LABEL[horizon].toLowerCase()}`
+                    : `Sample evidence scene · +${horizon} h · ${HORIZON_LABEL[horizon].toLowerCase()}`}
+                </div>
               </div>
             </div>
 

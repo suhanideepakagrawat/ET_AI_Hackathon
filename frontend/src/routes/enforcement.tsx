@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { DelhiWardMap } from "@/components/DelhiWardMap";
 import { MapView } from "@/components/MapView";
 import { MethodPanel } from "@/components/HowItWorks";
 import { aqiCategory, CELLS, ENFORCEMENT_TARGETS, type Cell } from "@/lib/air-data";
@@ -58,11 +59,29 @@ function Enforcement() {
   return (
     <AppShell>
       <div className="grid h-[calc(100vh-57px)] grid-cols-1 md:grid-cols-[1fr_500px] xl:grid-cols-[1fr_560px]">
-        <section className="min-h-0 overflow-hidden border-r border-border">
-          <MapView
-            selectedId={cell?.id}
-            layers={{ enforcement: true, windCorridor: true, fires: false }}
-          />
+        <section className="relative min-h-0 overflow-hidden border-r border-border bg-bg-secondary">
+          {live && wards.isSuccess ? (
+            <>
+              <DelhiWardMap
+                liveWards={wards.data.wards}
+                horizon="24"
+                onPick={(w) => setQuery(w.name)}
+                badges={dep.data!.items.slice(0, 10).map((w) => ({
+                  id: `W${(w.ward_no ?? "").replace(/\.0$/, "").replace(/ /g, "_")}`,
+                  label: String(w.rank),
+                }))}
+                className="p-2"
+              />
+              <div className="pointer-events-none absolute left-4 top-4">
+                <div className="chip">Real Delhi wards · numbers = deployment rank · click a ward to find it in the queue</div>
+              </div>
+            </>
+          ) : (
+            <MapView
+              selectedId={cell?.id}
+              layers={{ enforcement: true, windCorridor: true, fires: false }}
+            />
+          )}
         </section>
 
         <aside className="overflow-y-auto bg-panel">
