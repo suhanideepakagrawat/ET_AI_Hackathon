@@ -59,6 +59,8 @@ FEATURES = [
 
 def _zone_summary(z: dict) -> dict:
     band = band_for_aqi(z.get("current_aqi", 0))
+    forecast = {str(h): round(float(v))
+                for h, v in (z.get("forecast") or {}).items()}
     return {
         "zone_id": z["zone_id"],
         "name": z.get("name"),
@@ -68,6 +70,8 @@ def _zone_summary(z: dict) -> dict:
         "band": band.key,
         "band_label": band.label_en,
         "color": band.color,
+        "forecast": forecast,          # {"24": aqi, "48": aqi, "72": aqi}
+        "sources": z.get("sources"),   # {traffic, industry, construction} %
         "dominant_source": z.get("dominant_source"),
         "dominant_source_pct": round(z.get("dominant_source_pct", 0)),
         "confidence": z.get("confidence"),

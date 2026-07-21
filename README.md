@@ -29,7 +29,7 @@ where to send inspectors · and what **you** personally should do — in your la
 
 ---
 
-> ⏱️ **Judging in a hurry?** Open the **[live citizen app](https://vayumitra-advisory.onrender.com)**, ask *"can my child play outside this evening?"*, tap **हिं** for Hindi, and tap **sources** under any answer — real forecasts for **209 named Delhi wards**, straight from the trained pipeline. Then open the **[operator dashboard](https://airgrid-dashboard.onrender.com)** → *Enforcement* for the live ward-deployment plan. That's Features 1–4 working end-to-end, deployed on real data.
+> ⏱️ **Judging in a hurry?** Open the **[dashboard](https://airgrid-dashboard.onrender.com)** and click **+24 h / +48 h / +72 h** — every chart, map and ranking re-computes from the real forecasts for **209 named Delhi wards**. Every page explains its own method in plain words ("How is this predicted?"). Then tap **Ask VayuMitra** (bottom-right, or the **[full app](https://vayumitra-advisory.onrender.com)**): *"can my child play outside this evening?"*, **हिं** for Hindi, **sources** under any answer. That's Features 1–4 working end-to-end, deployed on real data.
 
 ---
 
@@ -57,14 +57,15 @@ India's cities *measure* air pollution; they rarely *act* on it in time. Reading
 
 ## See it
 
-| Operator dashboard | Citizen advisory (VayuMitra) |
+| Operator dashboard — city pulse + method | Citizen advisory (VayuMitra) |
 |:---:|:---:|
 | ![Dashboard](docs/screenshots/dash_02_dashboard.png) | ![VayuMitra](docs/screenshots/02_advisory_sources.png) |
-| *1 km grid · source attribution · wind corridors · enforcement pins* | *Persona-aware, health-band-cited, English + हिन्दी, voice* |
+| *Click a horizon — map, rail and charts re-compute · "how we predict" in plain words* | *Persona-aware, health-band-cited, English + हिन्दी, voice* |
 
-| Landing | Enforcement queue |
+| Interactive forecast explorer (209 real wards) | Enforcement — live deployment plan |
 |:---:|:---:|
-| ![Landing](docs/screenshots/dash_01_landing.png) | ![Enforcement](docs/screenshots/dash_04_enforcement.png) |
+| ![Forecast explorer](docs/screenshots/dash_05_forecast_explorer.png) | ![Enforcement](docs/screenshots/dash_04_enforcement.png) |
+| *City trajectory 99 → 95 → 105 · CPCB band census · worst-first ranking* | *Deployment scores, team assignment, "how is this ranked?"* |
 
 ## How it works
 

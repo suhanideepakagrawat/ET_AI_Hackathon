@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { CITIZEN_APP_URL, healthQuery } from "@/lib/api";
+import { healthQuery } from "@/lib/api";
+import { VayuMitraDock } from "@/components/VayuMitraDock";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard" },
@@ -16,15 +17,15 @@ export function AppShell({ children, right }: { children: ReactNode; right?: Rea
   const live = api.isSuccess;
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="flex items-center justify-between border-b border-border bg-panel px-5 py-3">
-        <div className="flex items-center gap-8">
-          <Link to="/" className="flex items-center gap-2">
+      <header className="flex items-center justify-between gap-3 border-b border-border bg-panel px-4 py-3 md:px-5">
+        <div className="flex min-w-0 items-center gap-3 md:gap-8">
+          <Link to="/" className="flex shrink-0 items-center gap-2">
             <LogoMark />
-            <span className="text-sm font-bold tracking-tight">
+            <span className="hidden text-sm font-bold tracking-tight sm:inline">
               AirGrid<span className="text-accent-dim">·</span>NCR
             </span>
           </Link>
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-1 overflow-x-auto whitespace-nowrap">
             {NAV.map((n) => {
               const active = pathname === n.to;
               return (
@@ -43,16 +44,8 @@ export function AppShell({ children, right }: { children: ReactNode; right?: Rea
             })}
           </nav>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex shrink-0 items-center gap-4">
           {right}
-          <a
-            href={CITIZEN_APP_URL}
-            target="_blank"
-            rel="noopener"
-            className="hidden rounded-full bg-accent px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-[#064a42] md:inline-flex"
-          >
-            Open VayuMitra →
-          </a>
           <div
             className="mono flex items-center gap-2 text-[11px] text-text-dim"
             title={live ? "Backend API connected" : "Backend unreachable — showing bundled sample data"}
@@ -63,6 +56,7 @@ export function AppShell({ children, right }: { children: ReactNode; right?: Rea
         </div>
       </header>
       <main className="flex-1">{children}</main>
+      <VayuMitraDock />
     </div>
   );
 }

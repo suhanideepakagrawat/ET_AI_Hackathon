@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   CELLS,
+  cellAqi,
   GRID_COLS,
   GRID_ROWS,
   SOURCE_COLORS,
@@ -9,6 +10,7 @@ import {
   VULNERABLE_SITES,
   ENFORCEMENT_TARGETS,
   type Cell,
+  type Horizon,
   type SourceKey,
 } from "@/lib/air-data";
 
@@ -25,6 +27,7 @@ type Props = {
   onSelect?: (cell: Cell) => void;
   layers?: Partial<LayerToggles>;
   sourceFilter?: SourceKey | "all";
+  horizon?: Horizon; // cell intensity follows this horizon's forecast AQI
   ambient?: boolean; // landing hero mode — no interactions
   height?: number | string;
 };
@@ -38,6 +41,7 @@ export function MapView({
   onSelect,
   layers,
   sourceFilter = "all",
+  horizon = "24",
   ambient = false,
   height = "100%",
 }: Props) {
@@ -145,14 +149,16 @@ export function MapView({
             );
           })}
 
-        {/* Grid cells */}
+        {/* Grid cells — intensity tracks the active horizon's forecast AQI,
+            so switching +24/+48/+72 visibly re-lights the map. */}
         {CELLS.map((c) => {
           const cx = PAD + c.x * CELL_W;
           const cy = PAD + c.y * CELL_H;
           const dim = sourceFilter !== "all" && c.dominantSource !== sourceFilter;
           const isSelected = selectedId === c.id;
           const isHover = hoverId === c.id;
-          const opacity = dim ? 0.06 : 0.15 + c.confidence * 0.6;
+          const load = Math.min(cellAqi(c, horizon) / 420, 1);
+          const opacity = dim ? 0.06 : 0.06 + load * (0.35 + c.confidence * 0.55);
           const stableEnough = c.confidence > 0.75 && !dim;
           return (
             <g
@@ -169,6 +175,7 @@ export function MapView({
                 height={CELL_H - 2}
                 fill={SOURCE_COLORS[c.dominantSource]}
                 fillOpacity={opacity}
+                style={{ transition: "fill-opacity 0.3s ease-out" }}
                 className={stableEnough ? "cell-pulse" : ""}
               />
               {isSelected && (

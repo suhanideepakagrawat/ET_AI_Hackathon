@@ -21,6 +21,8 @@ async function get<T>(path: string, timeoutMs = 8000): Promise<T> {
   }
 }
 
+export type HorizonKey = "24" | "48" | "72";
+
 export type LiveWard = {
   zone_id: string;
   name: string;
@@ -30,10 +32,18 @@ export type LiveWard = {
   band: string;
   band_label: string;
   color: string;
+  forecast?: Partial<Record<HorizonKey, number>>;
+  sources?: { traffic: number; industry: number; construction: number };
   dominant_source: string | null;
   dominant_source_pct: number;
   confidence: number | null;
 };
+
+/** AQI of a ward at a horizon; falls back to the current AQI when the API
+ *  predates the forecast field (older deploy) so the UI never breaks. */
+export function wardAqiAt(w: LiveWard, h: HorizonKey): number {
+  return Math.round(w.forecast?.[h] ?? w.aqi);
+}
 
 export type WardsResponse = {
   city: string;

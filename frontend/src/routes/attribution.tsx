@@ -1,134 +1,247 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
-import { CELLS, SOURCE_COLORS, SOURCE_LABELS, type SourceKey } from "@/lib/air-data";
+import { SourceStrip, BandBadge } from "@/components/charts";
+import { MethodPanel } from "@/components/HowItWorks";
+import { aqiCategory, CELLS, SOURCE_COLORS, SOURCE_LABELS, type SourceKey } from "@/lib/air-data";
+import { wardsQuery, type LiveWard } from "@/lib/api";
 
 export const Route = createFileRoute("/attribution")({
   head: () => ({
     meta: [
       { title: "Attribution — AirGrid NCR" },
-      { name: "description", content: "City-wide source attribution trends across Delhi-NCR grid cells." },
+      { name: "description", content: "City-wide source attribution across Delhi wards: who is polluting where, with confidence." },
     ],
   }),
   component: Attribution,
 });
 
-function Attribution() {
+const LIVE_SOURCE_META: Record<string, { label: string; color: string }> = {
+  traffic: { label: "Traffic", color: "var(--source-traffic)" },
+  industry: { label: "Industry", color: "var(--source-industry)" },
+  construction: { label: "Construction dust", color: "var(--source-construction)" },
+};
+
+type MixRow = { key: string; label: string; color: string; pct: number };
+
+function liveMix(wards: LiveWard[]): MixRow[] {
+  // AQI-weighted mean of each ward's source split — loaded wards count more.
+  const acc: Record<string, number> = { traffic: 0, industry: 0, construction: 0 };
+  let weight = 0;
+  for (const w of wards) {
+    if (!w.sources) continue;
+    for (const k of Object.keys(acc)) acc[k] += (w.sources as any)[k] * w.aqi;
+    weight += w.aqi;
+  }
+  const total = Object.values(acc).reduce((a, b) => a + b, 0) || 1;
+  return Object.entries(acc).map(([k, v]) => ({
+    key: k,
+    label: LIVE_SOURCE_META[k].label,
+    color: LIVE_SOURCE_META[k].color,
+    pct: (v / total) * 100,
+  }));
+}
+
+function sampleMix(): MixRow[] {
   const totals: Record<SourceKey, number> = { traffic: 0, industry: 0, construction: 0, burning: 0 };
   CELLS.forEach((c) => {
     (Object.keys(totals) as SourceKey[]).forEach((k) => (totals[k] += c.attribution[k] * c.aqi));
   });
   const sum = Object.values(totals).reduce((a, b) => a + b, 0);
-  const shares = (Object.keys(totals) as SourceKey[]).map((k) => ({
-    k,
-    pct: totals[k] / sum,
+  return (Object.keys(totals) as SourceKey[]).map((k) => ({
+    key: k,
+    label: SOURCE_LABELS[k],
+    color: SOURCE_COLORS[k],
+    pct: (totals[k] / sum) * 100,
   }));
+}
 
-  // Fake 24h series per source
-  const hours = 24;
-  const series: Record<SourceKey, number[]> = {
-    traffic: Array.from({ length: hours }, (_, i) => 40 + Math.sin(i / 3) * 12 + (i > 8 && i < 20 ? 20 : 0)),
-    industry: Array.from({ length: hours }, (_, i) => 30 + Math.cos(i / 4) * 8 + (i < 8 ? 15 : 0)),
-    construction: Array.from({ length: hours }, (_, i) => 20 + Math.sin(i / 5) * 6 + (i > 6 && i < 18 ? 12 : 0)),
-    burning: Array.from({ length: hours }, (_, i) => 55 + Math.sin((i + 4) / 6) * 20 + (i < 10 ? 25 : -10)),
-  };
+/** Mean source mix of wards grouped by CPCB band — the "who pollutes the worst
+ *  wards" chart. Only bands with enough wards to mean something are shown. */
+function mixByBand(wards: LiveWard[]): { band: string; color: string; text: string; count: number; mix: MixRow[] }[] {
+  const groups = new Map<string, LiveWard[]>();
+  for (const w of wards) {
+    if (!w.sources) continue;
+    const label = aqiCategory(w.aqi).label;
+    groups.set(label, [...(groups.get(label) ?? []), w]);
+  }
+  const order = ["Good", "Satisfactory", "Moderate", "Poor", "Very Poor", "Severe"];
+  return order
+    .filter((b) => (groups.get(b)?.length ?? 0) >= 3)
+    .map((b) => {
+      const ws = groups.get(b)!;
+      const acc: Record<string, number> = { traffic: 0, industry: 0, construction: 0 };
+      for (const w of ws) for (const k of Object.keys(acc)) acc[k] += (w.sources as any)[k];
+      const total = Object.values(acc).reduce((x, y) => x + y, 0) || 1;
+      const sampleAqi = { Good: 40, Satisfactory: 80, Moderate: 150, Poor: 250, "Very Poor": 350, Severe: 450 }[b]!;
+      const cat = aqiCategory(sampleAqi);
+      return {
+        band: b,
+        color: cat.color,
+        text: cat.text,
+        count: ws.length,
+        mix: Object.entries(acc).map(([k, v]) => ({
+          key: k,
+          label: LIVE_SOURCE_META[k].label,
+          color: LIVE_SOURCE_META[k].color,
+          pct: (v / total) * 100,
+        })),
+      };
+    });
+}
+
+function Attribution() {
+  const live = useQuery(wardsQuery());
+  const wards: LiveWard[] | null =
+    live.isSuccess && live.data.wards.some((w) => w.sources) ? live.data.wards : null;
+
+  const view = useMemo(() => {
+    if (wards) {
+      return {
+        real: live.data!.data_kind === "real",
+        mix: liveMix(wards),
+        byBand: mixByBand(wards),
+        top: [...wards].sort((a, b) => b.aqi - a.aqi).slice(0, 10).map((w) => ({
+          id: w.zone_id,
+          name: w.name,
+          aqi: w.aqi,
+          dominant: w.dominant_source ?? "—",
+          confidence: w.confidence,
+          mix: w.sources
+            ? Object.entries(w.sources).map(([k, v]) => ({
+                key: k,
+                label: LIVE_SOURCE_META[k].label,
+                color: LIVE_SOURCE_META[k].color,
+                pct: v as number,
+              }))
+            : [],
+        })),
+        unit: `${wards.length} named Delhi wards`,
+      };
+    }
+    return {
+      real: false,
+      mix: sampleMix(),
+      byBand: [],
+      top: [...CELLS].sort((a, b) => b.aqi - a.aqi).slice(0, 10).map((c) => ({
+        id: c.id,
+        name: c.ward,
+        aqi: c.aqi,
+        dominant: SOURCE_LABELS[c.dominantSource],
+        confidence: c.confidence,
+        mix: (Object.keys(c.attribution) as SourceKey[]).map((k) => ({
+          key: k,
+          label: SOURCE_LABELS[k],
+          color: SOURCE_COLORS[k],
+          pct: c.attribution[k] * 100,
+        })),
+      })),
+      unit: "sample scene",
+    };
+  }, [wards, live.data]);
 
   return (
     <AppShell>
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="chip mb-3">Attribution · city-wide</div>
-        <h1 className="font-display text-3xl">Source contribution across the NCR grid</h1>
+        <h1 className="font-display text-3xl">Who is polluting Delhi, ward by ward</h1>
         <p className="mt-2 max-w-2xl text-sm text-text-dim">
-          Aggregated share of forecast AQI by source over the current run. Numbers weighted
-          by cell AQI so heavily-loaded cells count more than clean ones.
+          {view.real
+            ? "Live attribution from the trained pipeline — each ward's split of traffic, industry and construction, weighted by how loaded the ward is."
+            : "Aggregated share of forecast AQI by source. Live ward attribution appears here as soon as the API answers."}
         </p>
+        <p className="mono mt-1 text-[11px] text-text-mute">{view.unit} · AQI-weighted</p>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-[1fr_1fr]">
+        <div className="mt-8 grid gap-6 md:grid-cols-2">
           <div className="panel p-6">
-            <div className="mono text-[11px] text-text-mute">Contribution mix</div>
-            <div className="mt-4 flex h-4 overflow-hidden border border-border">
-              {shares.map((s) => (
-                <div key={s.k} style={{ width: `${s.pct * 100}%`, background: SOURCE_COLORS[s.k] }} title={`${SOURCE_LABELS[s.k]} · ${Math.round(s.pct * 100)}%`} />
-              ))}
+            <div className="mono text-[11px] text-text-mute">City-wide contribution mix</div>
+            <div className="mt-4">
+              <SourceStrip mix={view.mix} height={18} />
             </div>
             <ul className="mono mt-6 space-y-2 text-sm">
-              {shares.map((s) => (
-                <li key={s.k} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
+              {view.mix.map((s) => (
+                <li key={s.key} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
                   <span className="flex items-center gap-2 text-text-dim">
-                    <span className="h-2 w-2" style={{ background: SOURCE_COLORS[s.k] }} />
-                    {SOURCE_LABELS[s.k]}
+                    <span className="h-2 w-2" style={{ background: s.color }} />
+                    {s.label}
                   </span>
-                  <span className="text-foreground">{(s.pct * 100).toFixed(1)}%</span>
+                  <span className="text-foreground">{s.pct.toFixed(1)}%</span>
                 </li>
               ))}
             </ul>
           </div>
 
           <div className="panel p-6">
-            <div className="mono text-[11px] text-text-mute">24-hour source load · μg/m³ equiv</div>
-            <TrendChart series={series} />
+            <div className="mono text-[11px] text-text-mute">
+              {view.byBand.length ? "Source mix by severity — who runs the worst wards" : "Reading this page"}
+            </div>
+            {view.byBand.length ? (
+              <ul className="mt-4 space-y-4">
+                {view.byBand.map((b) => (
+                  <li key={b.band}>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <span
+                        className="mono rounded-md px-2 py-0.5 text-[11px] font-bold"
+                        style={{ background: b.color, color: b.text }}
+                      >
+                        {b.band}
+                      </span>
+                      <span className="mono text-[11px] text-text-mute">{b.count} wards</span>
+                    </div>
+                    <SourceStrip mix={b.mix} height={14} />
+                  </li>
+                ))}
+                <li className="mono pt-1 text-[11px] text-text-mute">
+                  Read down the strips: as wards get worse, watch which color grows — that's the
+                  source enforcement should chase first.
+                </li>
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-text-dim">
+                Each ward's forecast is split into source shares with a confidence score.
+                The strips group wards by CPCB band so you can see which source dominates
+                as air gets worse — the signal the enforcement queue is built on.
+              </p>
+            )}
           </div>
         </div>
 
         <div className="panel mt-6 p-6">
-          <div className="mono text-[11px] text-text-mute">Top cells by AQI · +24h</div>
-          <table className="mono mt-4 w-full text-sm">
-            <thead className="mono text-[11px] text-text-mute">
-              <tr className="border-b border-border">
-                <th className="py-2 text-left">Cell</th>
-                <th className="text-left">Ward</th>
-                <th className="text-right">AQI</th>
-                <th className="text-left pl-6">Dominant</th>
-                <th className="text-right">Confidence</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...CELLS].sort((a, b) => b.aqi - a.aqi).slice(0, 10).map((c) => (
-                <tr key={c.id} className="border-b border-border/50 last:border-0">
-                  <td className="py-2 text-text-dim">{c.id}</td>
-                  <td className="text-text-dim">{c.ward}</td>
-                  <td className="text-right text-foreground">{c.aqi}</td>
-                  <td className="pl-6">
-                    <span className="flex items-center gap-2 text-text-dim">
-                      <span className="h-1.5 w-1.5" style={{ background: SOURCE_COLORS[c.dominantSource] }} />
-                      {SOURCE_LABELS[c.dominantSource]}
-                    </span>
-                  </td>
-                  <td className="text-right text-accent">{Math.round(c.confidence * 100)}%</td>
+          <div className="mono text-[11px] text-text-mute">Worst 10 wards · current forecast</div>
+          <div className="overflow-x-auto">
+            <table className="mono mt-4 w-full min-w-[560px] text-sm">
+              <thead className="mono text-[11px] text-text-mute">
+                <tr className="border-b border-border">
+                  <th className="py-2 text-left">Ward</th>
+                  <th className="text-right">AQI</th>
+                  <th className="pl-4 text-left">Band</th>
+                  <th className="pl-6 text-left">Source mix</th>
+                  <th className="pl-4 text-left">Dominant</th>
+                  <th className="text-right">Confidence</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {view.top.map((r) => (
+                  <tr key={r.id} className="border-b border-border/50 last:border-0">
+                    <td className="py-2.5 text-foreground">{r.name}</td>
+                    <td className="text-right font-bold text-foreground">{Math.round(r.aqi)}</td>
+                    <td className="pl-4"><BandBadge aqi={r.aqi} /></td>
+                    <td className="pl-6"><div className="w-36"><SourceStrip mix={r.mix} height={10} /></div></td>
+                    <td className="pl-4 text-text-dim">{r.dominant}</td>
+                    <td className="text-right text-accent">
+                      {r.confidence != null ? `${Math.round((r.confidence as number) * 100)}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="mt-8">
+          <MethodPanel method="attribution" />
         </div>
       </div>
     </AppShell>
-  );
-}
-
-function TrendChart({ series }: { series: Record<SourceKey, number[]> }) {
-  const width = 520;
-  const height = 220;
-  const hours = 24;
-  const max = Math.max(...(Object.values(series).flat()));
-  const x = (i: number) => (i / (hours - 1)) * (width - 20) + 10;
-  const y = (v: number) => height - 20 - (v / max) * (height - 40);
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 h-56 w-full">
-      {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-        <line key={t} x1={10} x2={width - 10} y1={height - 20 - t * (height - 40)} y2={height - 20 - t * (height - 40)} stroke="var(--accent-dim)" strokeOpacity="0.12" />
-      ))}
-      {(Object.keys(series) as SourceKey[]).map((k) => {
-        const pts = series[k].map((v, i) => `${x(i)},${y(v)}`).join(" ");
-        return <polyline key={k} points={pts} fill="none" stroke={`var(--source-${k})`} strokeWidth="1.5" />;
-      })}
-      {Array.from({ length: 5 }).map((_, i) => {
-        const h = (i * 6) % 24;
-        return (
-          <text key={i} x={x(h)} y={height - 4} fontSize="9" fill="var(--text-mute)" className="mono" textAnchor="middle">
-            {String(h).padStart(2, "0")}:00
-          </text>
-        );
-      })}
-    </svg>
   );
 }

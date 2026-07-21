@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MapView } from "@/components/MapView";
+import { MethodPanel } from "@/components/HowItWorks";
 import { aqiCategory, CELLS, ENFORCEMENT_TARGETS, type Cell } from "@/lib/air-data";
 import { deploymentQuery } from "@/lib/api";
 
@@ -19,11 +20,27 @@ export const Route = createFileRoute("/enforcement")({
 function Enforcement() {
   const dep = useQuery(deploymentQuery);
   const live = dep.isSuccess && dep.data.available && dep.data.items.length > 0;
+  const [showMethod, setShowMethod] = useState(false);
 
   const sorted = [...ENFORCEMENT_TARGETS].sort((a, b) => b.priority - a.priority);
   const [selectedId, setSelectedId] = useState<string>(sorted[0].id);
   const target = sorted.find((t) => t.id === selectedId)!;
   const cell: Cell | undefined = CELLS.find((c) => c.id === target.cellId);
+
+  // Which teams the plan sends out, and how often — the "one glance" summary.
+  const teamMix = useMemo(() => {
+    if (!live) return [];
+    const counts = new Map<string, number>();
+    for (const w of dep.data!.items) {
+      if (!w.recommended_team) continue;
+      counts.set(w.recommended_team, (counts.get(w.recommended_team) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [live, dep.data]);
+
+  const maxScore = live
+    ? Math.max(...dep.data!.items.map((w) => w.deployment_score ?? 0), 1)
+    : 1;
 
   return (
     <AppShell>
@@ -46,6 +63,31 @@ function Enforcement() {
                 ? `${dep.data.items.length} wards ranked by deployment score (severity × source × persistence)`
                 : `${sorted.length} sample targets · ranked by fused priority score`}
             </p>
+            {teamMix.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {teamMix.map(([team, n]) => (
+                  <span key={team} className="mono rounded-full bg-surface-1 px-2.5 py-1 text-[11px] text-text-dim">
+                    {team} <b className="text-foreground">×{n}</b>
+                  </span>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setShowMethod((s) => !s)}
+              aria-expanded={showMethod}
+              className={`mt-3 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                showMethod
+                  ? "border-accent bg-accent text-white"
+                  : "border-border text-text-dim hover:border-accent-dim hover:text-accent"
+              }`}
+            >
+              {showMethod ? "Hide the method" : "How is this ranked?"}
+            </button>
+            {showMethod && (
+              <div className="mt-4 border-t border-border pt-4">
+                <MethodPanel method="enforcement" compact />
+              </div>
+            )}
           </div>
 
           {live ? (
@@ -73,6 +115,16 @@ function Enforcement() {
                       <span>{w.hotspots} hotspot cells</span>
                       <span>·</span>
                       <span>score {Math.round(w.deployment_score ?? 0)}</span>
+                    </div>
+                    <div
+                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-1"
+                      role="img"
+                      aria-label={`Deployment score ${Math.round(w.deployment_score ?? 0)} of ${Math.round(maxScore)}`}
+                    >
+                      <div
+                        className="h-full rounded-full bg-accent transition-all duration-300"
+                        style={{ width: `${((w.deployment_score ?? 0) / maxScore) * 100}%` }}
+                      />
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-text-dim">
                       {w.dominant_source && (

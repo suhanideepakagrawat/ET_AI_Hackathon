@@ -182,6 +182,10 @@
 .cell-pulse { animation: cell-pulse 3.2s ease-in-out infinite; }
 .fire-glow { animation: fire-glow 2.4s ease-in-out infinite; }
 
+/* VayuMitra dock slide — state transition (open/close), ease-out. */
+.dock-panel { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+
 @media (prefers-reduced-motion: reduce) {
   .wind-flow, .cell-pulse, .fire-glow { animation: none !important; }
+  .dock-panel { transition: none !important; }
 }

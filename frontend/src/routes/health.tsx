@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { MethodPanel } from "@/components/HowItWorks";
 import { CELLS, VULNERABLE_SITES, aqiCategory } from "@/lib/air-data";
 import { CITIZEN_APP_URL, wardsQuery } from "@/lib/api";
 
@@ -23,6 +25,7 @@ const PERSONA_FOR: Record<string, string> = {
 
 function Health() {
   const live = useQuery(wardsQuery());
+  const [showMethod, setShowMethod] = useState(false);
 
   // Match sites to their cell AQI (sample scene), worst first.
   const rows = VULNERABLE_SITES.map((v) => {
@@ -76,6 +79,22 @@ function Health() {
                 Live ward feed connected · {live.data.count} zones · worst now:{" "}
                 {live.data.wards[0]?.name} (AQI {live.data.wards[0]?.aqi})
               </p>
+            )}
+            <button
+              onClick={() => setShowMethod((s) => !s)}
+              aria-expanded={showMethod}
+              className={`mt-3 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                showMethod
+                  ? "border-accent bg-accent text-white"
+                  : "border-border text-text-dim hover:border-accent-dim hover:text-accent"
+              }`}
+            >
+              {showMethod ? "Hide the method" : "How is the advice made?"}
+            </button>
+            {showMethod && (
+              <div className="mt-4 border-t border-border pt-4">
+                <MethodPanel method="advisory" compact />
+              </div>
             )}
           </div>
 

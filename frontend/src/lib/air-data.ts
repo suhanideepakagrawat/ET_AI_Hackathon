@@ -128,6 +128,27 @@ export const CELLS: Cell[] = (() => {
   return out;
 })();
 
+// Per-horizon AQI for the sample scene. The scene tells one meteorological
+// story: tonight's stagnation loads the NW burning/industry corridor at +48h,
+// then a western disturbance flushes the basin at +72h — construction dust is
+// the slowest to clear. Deterministic, so every load shows the same story.
+export type Horizon = "24" | "48" | "72";
+export const HORIZONS: Horizon[] = ["24", "48", "72"];
+
+export function cellAqi(c: Cell, h: Horizon): number {
+  if (h === "24") return c.aqi;
+  const nw = c.y < GRID_ROWS * 0.4 || c.x < GRID_COLS * 0.35;
+  if (h === "48") {
+    const bump =
+      c.dominantSource === "burning" ? 1.2 :
+      c.dominantSource === "industry" ? 1.13 :
+      nw ? 1.08 : 1.03;
+    return Math.round(c.aqi * bump);
+  }
+  const drop = c.dominantSource === "construction" ? 0.9 : 0.7;
+  return Math.round(c.aqi * drop);
+}
+
 // CPCB National AQI categories — a public standard, never recolored for taste.
 // `text` follows the Legible Band Rule: ink on the light bands (Good, Satisfactory,
 // Moderate), white only on Poor / Very Poor / Severe.
