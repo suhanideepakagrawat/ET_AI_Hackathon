@@ -211,6 +211,28 @@ def test_enforcement_and_deployment_endpoints():
         assert dep["items"] and {"ward_name", "deployment_score"} <= set(dep["items"][0])
 
 
+def test_locate_resolves_delhi_coordinate():
+    from fastapi.testclient import TestClient
+    from backend.advisory_api import app
+    client = TestClient(app)
+    # A point well inside Delhi resolves to a ward with usable zone data
+    # (boundary hit, or honest nearest-forecast-ward fallback).
+    r = client.get("/locate?lat=28.656&lon=77.292").json()
+    assert r["in_delhi"] is True
+    assert r["matched"] in ("boundary", "nearest")
+    assert r["zone"] and {"zone_id", "name", "aqi", "band"} <= set(r["zone"])
+
+
+def test_locate_rejects_outside_delhi():
+    from fastapi.testclient import TestClient
+    from backend.advisory_api import app
+    client = TestClient(app)
+    r = client.get("/locate?lat=19.07&lon=72.87").json()  # Mumbai
+    assert r["in_delhi"] is False
+    assert r["matched"] == "none"
+    assert r["zone"] is None
+
+
 def test_tts_falls_back_when_no_keys():
     from fastapi.testclient import TestClient
     from backend.advisory_api import app

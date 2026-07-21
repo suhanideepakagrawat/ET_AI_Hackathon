@@ -15,6 +15,8 @@ import {
   SourceStrip,
 } from "@/components/charts";
 import { MethodPanel } from "@/components/HowItWorks";
+import { MyWardChip } from "@/components/MyWardChip";
+import { useMyWard, type MyWard } from "@/lib/locate";
 import {
   aqiCategory,
   CELLS,
@@ -77,6 +79,10 @@ function Dashboard() {
   const deployRows: DeploymentRow[] =
     deployment.isSuccess && deployment.data.available ? deployment.data.items : [];
 
+  // Geolocation -> the user's own ward. On success it becomes the focused
+  // ward (they can still change via search/map — this only fires on locate).
+  const my = useMyWard((zone) => setSel({ kind: "ward", ward: zone }));
+
   // Default focus: the worst live ward (a real place with real numbers), or
   // the sample cell when the API is unreachable.
   const active: Selection | null =
@@ -98,6 +104,8 @@ function Dashboard() {
           dataKind={live.isSuccess ? live.data.data_kind : null}
           showMethod={showMethod}
           onToggleMethod={() => setShowMethod((s) => !s)}
+          my={my}
+          onGoMyWard={() => my.zone && setSel({ kind: "ward", ward: my.zone })}
         />
         {showMethod && (
           <div className="border-b border-border bg-bg-primary px-5 py-4">
@@ -182,6 +190,7 @@ function Dashboard() {
                   liveWards={liveWards}
                   horizon={horizon}
                   selectedId={active?.kind === "ward" ? active.ward.zone_id : null}
+                  hereId={my.status === "found" ? my.zone?.zone_id ?? null : null}
                   onPick={(w) => setSel({ kind: "ward", ward: w })}
                   className="p-2"
                 />
@@ -254,6 +263,8 @@ function PulseStrip({
   dataKind,
   showMethod,
   onToggleMethod,
+  my,
+  onGoMyWard,
 }: {
   horizon: Horizon;
   onHorizon: (h: Horizon) => void;
@@ -261,6 +272,8 @@ function PulseStrip({
   dataKind: string | null;
   showMethod: boolean;
   onToggleMethod: () => void;
+  my: MyWard;
+  onGoMyWard: () => void;
 }) {
   const stats = useMemo(() => {
     if (liveWards) {
@@ -320,6 +333,8 @@ function PulseStrip({
           {stats.worstAqi}
         </span>
       </div>
+
+      {liveWards && <MyWardChip my={my} horizon={horizon} onGo={onGoMyWard} />}
 
       <div className="hidden min-w-[220px] max-w-[340px] flex-1 xl:block">
         <BandDistribution

@@ -240,8 +240,14 @@ const T = {
   en:{status:c=>`Citizen Air-Quality Advisory · ${c}`, ask:'Ask about the air…',
     greet:"Namaste 🙏 I'm **VayuMitra**, your personal air-quality assistant.",
     canDo:"Here's how I can help:",
-    askArea:"First — which area are you in? Tap one below, or just type your area name.",
+    askArea:"First — which area are you in? Tap one below, use your location, or just type your area name.",
     otherArea:"Other area…",
+    useLoc:"Use my location", locating:"Finding your ward…",
+    locFound:n=>`You're in **${n}** — your ward, from your location.`,
+    locNearest:n=>`Closest forecast ward to you: **${n}**.`,
+    locDenied:"Location permission was declined — no problem, tap a ward below or type your area.",
+    locOutside:"You seem to be outside Delhi. Tap any ward below to explore.",
+    locErr:"Couldn't get a location fix — tap a ward below or type your area.",
     askPersona:name=>`Got it — **${name}**. And who is this advice for?`,
     changedArea:name=>`Switched to **${name}**.`,
     askPersonaFirst:"Who is this advice for? Tap one, or tell me (e.g. \"for my child\").",
@@ -254,8 +260,14 @@ const T = {
   hi:{status:c=>`नागरिक वायु सलाह · ${c}`, ask:'हवा के बारे में पूछें…',
     greet:"नमस्ते 🙏 मैं **वायुमित्र** हूँ, आपका निजी वायु-गुणवत्ता सहायक।",
     canDo:"मैं इस तरह मदद कर सकता हूँ:",
-    askArea:"सबसे पहले — आप किस क्षेत्र में हैं? नीचे से चुनें या अपना क्षेत्र टाइप करें।",
+    askArea:"सबसे पहले — आप किस क्षेत्र में हैं? नीचे से चुनें, अपनी लोकेशन इस्तेमाल करें, या क्षेत्र टाइप करें।",
     otherArea:"अन्य क्षेत्र…",
+    useLoc:"मेरी लोकेशन", locating:"आपका वार्ड खोजा जा रहा है…",
+    locFound:n=>`आप **${n}** में हैं — आपकी लोकेशन से मिला आपका वार्ड।`,
+    locNearest:n=>`आपके सबसे नज़दीकी पूर्वानुमान वार्ड: **${n}**।`,
+    locDenied:"लोकेशन की अनुमति नहीं मिली — कोई बात नहीं, नीचे से वार्ड चुनें या टाइप करें।",
+    locOutside:"आप दिल्ली से बाहर लगते हैं। नीचे किसी भी वार्ड को चुनकर देखें।",
+    locErr:"लोकेशन नहीं मिल पाई — नीचे से वार्ड चुनें या टाइप करें।",
     askPersona:name=>`ठीक है — **${name}**। यह सलाह किसके लिए है?`,
     changedArea:name=>`**${name}** पर बदल दिया।`,
     askPersonaFirst:"यह सलाह किसके लिए है? चुनें या बताएँ (जैसे \"मेरे बच्चे के लिए\")।",
@@ -346,8 +358,29 @@ function areaChips(){
   const t=T[LANG];
   const top=WARDS.slice(0,6).map(w=>({html:`${esc(w.name)} <span class="b" style="background:${w.color};color:${colorText(w.color)}">${w.aqi}</span>`,
     act:()=>pickArea(w)}));
+  if(navigator.geolocation)top.unshift({html:`<span aria-hidden="true">\u{1F4CD}</span> ${esc(t.useLoc)}`,act:locateMe});
   top.push({label:t.otherArea,act:()=>{document.getElementById('msg').focus();}});
   return top;
+}
+/* Geolocation -> real MCD ward via /locate (point-in-polygon on the server).
+   The coordinate is used once for the lookup and never stored. */
+function locateMe(){
+  const t=T[LANG];
+  addUser(t.useLoc);
+  addBot(`<div class="msg in">${md(t.locating)}<span class="time">${now()}</span></div>`,{raw:true});
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    let d;
+    try{d=await(await fetch(`${API}/locate?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&city=${CITY}`)).json();}
+    catch(e){addBot(t.locErr,{chips:areaChips().slice(1)});return;}
+    if(d&&d.zone){
+      const msg=d.matched==='boundary'?t.locFound(d.zone.name):t.locNearest(d.zone.name);
+      addBot(`<div class="msg in">${md(msg)}<span class="time">${now()}</span></div>`,{raw:true});
+      pickArea(d.zone);
+    }else if(d&&!d.in_delhi){addBot(t.locOutside,{chips:areaChips().slice(1)});}
+    else{addBot(t.locErr,{chips:areaChips().slice(1)});}
+  },err=>{
+    addBot(err.code===err.PERMISSION_DENIED?t.locDenied:t.locErr,{chips:areaChips().slice(1)});
+  },{enableHighAccuracy:true,timeout:12000,maximumAge:120000});
 }
 function askArea(){convState='ask_area';
   addBot(`<div class="msg in">${md(T[LANG].askArea)}<span class="time">${now()}</span></div>`,{raw:true});

@@ -21,7 +21,7 @@ where to send inspectors · and what **you** personally should do — in your la
 ![React](https://img.shields.io/badge/React_19-dashboard-61DAFB?logo=react&logoColor=black)
 ![XGBoost](https://img.shields.io/badge/XGBoost-3_trained_models-EB5E28)
 ![Groq](https://img.shields.io/badge/Llama_3.3-via_Groq-f55036)
-![Tests](https://img.shields.io/badge/tests-18%2F18_passing-009966)
+![Tests](https://img.shields.io/badge/tests-20%2F20_passing-009966)
 
 <sub>ET AI Hackathon 2026 · Problem Statement 5 · Team: Suhani · Parth · Krishna · Bind</sub>
 
@@ -129,6 +129,7 @@ We publish the 24-hour number even though persistence edges it — beating persi
 
 Most AQI apps show a number and a color. VayuMitra answers *your* question:
 
+- 📍 **Knows where you are** — allow location once and it resolves your exact MCD ward from the real boundaries (dashboard *and* chat); you can always change ward by search or tap.
 - 🧒 **Persona-aware** — *"can my child play outside?"* answers differently than *"can I go for a run?"*. Sensitive groups (children, elderly, asthma/heart, pregnant, outdoor workers) are warned a band earlier.
 - 📖 **Every answer cites authority** — CPCB National AQI bands, SAFAR advisories, WHO 2021 guidelines, and the active **GRAP stage** — tappable, with publisher and year. No invented thresholds: the LLM phrases only what the deterministic engine and cited sources establish.
 - 🗣️ **Speaks your language** — full English/हिन्दी parity, neural text-to-speech with pause/stop, mic input. Built for low-literacy users, not just app-natives.
@@ -155,7 +156,7 @@ cd frontend && npm install && npm run dev
 # → http://localhost:8080
 ```
 
-**Tests:** `python tests/test_advisory.py` → 18/18 offline (no keys, no network needed; pass on real and mock data).
+**Tests:** `python tests/test_advisory.py` → 20/20 offline (no keys, no network needed; pass on real and mock data).
 
 ## API at a glance
 
@@ -172,6 +173,7 @@ cd frontend && npm install && npm run dev
 | `GET /compare` | 5 | multi-city summary + intervention model |
 | `GET /sources` | 4 | the authority registry (CPCB · SAFAR · WHO · GRAP · NCAP) |
 | `GET /metrics` | 1 | honest validation numbers (LOSO + vs-persistence) |
+| `GET /locate` | 1+4 | GPS → your actual MCD ward (point-in-polygon on real boundaries) |
 
 ## Repository map
 

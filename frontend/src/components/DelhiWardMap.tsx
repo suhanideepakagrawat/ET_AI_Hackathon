@@ -16,6 +16,7 @@ export function DelhiWardMap({
   liveWards,
   horizon,
   selectedId,
+  hereId,
   onPick,
   badges,
   ambient = false,
@@ -24,6 +25,8 @@ export function DelhiWardMap({
   liveWards: LiveWard[] | null;
   horizon: Horizon;
   selectedId?: string | null;
+  /** The user's own ward (from geolocation) — gets a "you are here" pin. */
+  hereId?: string | null;
   onPick?: (w: LiveWard) => void;
   /** Small numbered markers, e.g. deployment ranks: [{id: "W133", label: "1"}] */
   badges?: { id: string; label: string }[];
@@ -85,6 +88,22 @@ export function DelhiWardMap({
             const s = GEO.wards.find((x) => x.id === selectedId);
             if (!s) return null;
             return <path d={s.d} fill="none" stroke="var(--accent)" strokeWidth="2.5" />;
+          })()}
+
+        {/* "You are here" — pin at the geolocated ward's centroid */}
+        {hereId &&
+          (() => {
+            const s = GEO.wards.find((x) => x.id === hereId);
+            if (!s) return null;
+            return (
+              <g pointerEvents="none">
+                <circle cx={s.cx} cy={s.cy} r="8.5" fill="var(--panel)" stroke="var(--accent)" strokeWidth="2" />
+                <circle cx={s.cx} cy={s.cy} r="3.6" fill="var(--accent)" />
+                <text x={s.cx} y={s.cy - 14} textAnchor="middle" fontSize="12.5" fontWeight="700" fill="var(--accent)" className="mono">
+                  You
+                </text>
+              </g>
+            );
           })()}
 
         {/* Numbered markers (deployment ranks) */}

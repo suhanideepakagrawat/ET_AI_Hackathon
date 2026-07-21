@@ -13,6 +13,8 @@ import {
   DeltaTag,
 } from "@/components/charts";
 import { MethodPanel } from "@/components/HowItWorks";
+import { MyWardChip } from "@/components/MyWardChip";
+import { useMyWard, type MyWard } from "@/lib/locate";
 import {
   CELLS,
   cellAqi,
@@ -32,6 +34,7 @@ export const Route = createFileRoute("/")({
 function Landing() {
   const live = useQuery(wardsQuery());
   const heroWards = live.isSuccess && live.data.wards.length > 0 ? live.data.wards : null;
+  const my = useMyWard();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -110,7 +113,12 @@ function Landing() {
           {/* The real MCD ward map, colored by the live forecast */}
           <div>
             <div className="h-[380px] md:h-[480px]">
-              <DelhiWardMap liveWards={heroWards} horizon="24" ambient />
+              <DelhiWardMap
+                liveWards={heroWards}
+                horizon="24"
+                hereId={my.status === "found" ? my.zone?.zone_id ?? null : null}
+                ambient
+              />
             </div>
             <p className="mono mt-3 text-center text-[11px] text-text-mute">
               {heroWards
@@ -122,7 +130,7 @@ function Landing() {
       </section>
 
       {/* Forecast explorer — the prediction, interactive */}
-      <ForecastExplorer />
+      <ForecastExplorer my={my} />
 
       {/* Attribution section */}
       <section id="attribution" className="border-t border-border">
@@ -227,7 +235,7 @@ function Landing() {
 /* Forecast explorer — click a horizon, watch every number move        */
 /* ------------------------------------------------------------------ */
 
-function ForecastExplorer() {
+function ForecastExplorer({ my }: { my: MyWard }) {
   const [horizon, setHorizon] = useState<Horizon>("24");
   const live = useQuery(wardsQuery());
   const wards: LiveWard[] | null =
@@ -284,7 +292,10 @@ function ForecastExplorer() {
                 : "Live pipeline output for every Delhi ward. If the API is still waking, a labeled sample scene stands in — the interaction is identical."}
             </p>
           </div>
-          <HorizonSwitch value={horizon} onChange={setHorizon} />
+          <div className="flex flex-col items-start gap-3 md:items-end">
+            <HorizonSwitch value={horizon} onChange={setHorizon} />
+            <MyWardChip my={my} horizon={horizon} />
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">

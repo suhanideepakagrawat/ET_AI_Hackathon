@@ -152,6 +152,99 @@ def enforcement_top() -> dict:
     return out
 
 
+# ---------------------------------------------------------------------------
+# Locate: lat/lon -> the actual MCD ward (point-in-polygon over the real
+# boundaries, shared with the dashboard via frontend/src/data/delhi-wards.json).
+# Falls back to the nearest forecast ward when the point sits in a boundary
+# gap or just outside Delhi — and says so honestly.
+# ---------------------------------------------------------------------------
+import math as _math
+import re as _re
+from functools import lru_cache as _lru_cache
+
+
+@_lru_cache(maxsize=1)
+def _ward_geometry():
+    import json as _json
+
+    path = _REPO_ROOT / "frontend" / "src" / "data" / "delhi-wards.json"
+    geo = _json.loads(path.read_text(encoding="utf-8"))
+    wards = []
+    for w in geo["wards"]:
+        rings = []
+        for seg in w["d"].split("M"):
+            pts = [(float(a), float(b))
+                   for a, b in _re.findall(r"(-?\d+\.?\d*)[ ,](-?\d+\.?\d*)", seg)]
+            if len(pts) >= 3:
+                rings.append(pts)
+        if rings:
+            wards.append({"id": w["id"], "name": w["name"], "rings": rings})
+    return geo["proj"], wards
+
+
+def _point_in_ward(x: float, y: float, rings) -> bool:
+    # Even-odd ray cast across all rings (outer + holes) of one ward.
+    inside = False
+    for ring in rings:
+        j = len(ring) - 1
+        for i in range(len(ring)):
+            xi, yi = ring[i]
+            xj, yj = ring[j]
+            if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+                inside = not inside
+            j = i
+    return inside
+
+
+def _km(lat1, lon1, lat2, lon2) -> float:
+    r = 6371.0
+    p1, p2 = _math.radians(lat1), _math.radians(lat2)
+    dp = p2 - p1
+    dl = _math.radians(lon2 - lon1)
+    a = _math.sin(dp / 2) ** 2 + _math.cos(p1) * _math.cos(p2) * _math.sin(dl / 2) ** 2
+    return 2 * r * _math.asin(_math.sqrt(a))
+
+
+@router.get("/locate")
+def locate(lat: float = Query(...), lon: float = Query(...),
+           city: str | None = Query(default=None)) -> dict:
+    """Resolve a GPS coordinate to its Delhi ward.
+
+    Returns the containing ward (real boundary hit) with its live zone data
+    when the ward is in the forecast set; otherwise the nearest forecast ward
+    with the distance, plus in_delhi=false when the point is far outside.
+    """
+    proj, wards = _ward_geometry()
+    x = (lon - proj["minx"]) * proj["kx"] * proj["sx"]
+    y = (proj["maxy"] - lat) * proj["sx"]
+
+    hit = next((w for w in wards if _point_in_ward(x, y, w["rings"])), None)
+
+    zones = list_zones(city)
+    nearest, nearest_km = None, 1e9
+    for z in zones:
+        if z.get("lat") is None:
+            continue
+        d = _km(lat, lon, z["lat"], z["lon"])
+        if d < nearest_km:
+            nearest, nearest_km = z, d
+
+    zone = None
+    if hit:
+        zone = next((z for z in zones if str(z["zone_id"]) == hit["id"]), None)
+
+    in_delhi = bool(hit) or nearest_km <= 3.0
+    return {
+        "in_delhi": in_delhi,
+        "matched": "boundary" if (hit and zone) else ("nearest" if in_delhi else "none"),
+        "ward_id": hit["id"] if hit else None,
+        "ward_name": hit["name"] if hit else None,
+        "zone": _zone_summary(zone) if zone else
+                (_zone_summary(nearest) if (in_delhi and nearest) else None),
+        "nearest_km": round(nearest_km, 1) if nearest else None,
+    }
+
+
 @router.get("/metrics")
 def model_metrics() -> dict:
     """Honest validation numbers from the training pipeline (data/metrics.json).
