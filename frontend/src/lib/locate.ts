@@ -31,7 +31,10 @@ export type MyWard = {
   request: () => void;
 };
 
-export function useMyWard(onFound?: (zone: LiveWard) => void): MyWard {
+export function useMyWard(
+  onFound?: (zone: LiveWard) => void,
+  opts?: { auto?: "always" | "granted" },
+): MyWard {
   const [status, setStatus] = useState<GeoStatus>("idle");
   const [zone, setZone] = useState<LiveWard | null>(null);
   const [wardName, setWardName] = useState<string | null>(null);
@@ -69,10 +72,17 @@ export function useMyWard(onFound?: (zone: LiveWard) => void): MyWard {
     );
   }, []);
 
-  // If the user has already granted location on a previous visit, resolve the
-  // ward automatically — no prompt fires when permission is "granted".
+  // auto:"always" (the dashboard) asks for location on load — the permission
+  // prompt itself is the ask. auto:"granted" (default) only resolves silently
+  // when a previous visit already granted it — no prompt fires.
+  const auto = opts?.auto ?? "granted";
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.permissions?.query) return;
+    if (typeof navigator === "undefined") return;
+    if (auto === "always") {
+      request();
+      return;
+    }
+    if (!navigator.permissions?.query) return;
     let cancelled = false;
     navigator.permissions
       .query({ name: "geolocation" as PermissionName })
@@ -83,7 +93,7 @@ export function useMyWard(onFound?: (zone: LiveWard) => void): MyWard {
     return () => {
       cancelled = true;
     };
-  }, [request]);
+  }, [request, auto]);
 
   return { status, zone, wardName, matched, request };
 }

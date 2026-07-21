@@ -19,6 +19,16 @@ export function VayuMitraDock() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Anywhere in the app (e.g. the your-location banner) can summon the dock.
+  useEffect(() => {
+    const onOpen = () => {
+      setOpen(true);
+      setEverOpened(true);
+    };
+    window.addEventListener("open-vayumitra", onOpen);
+    return () => window.removeEventListener("open-vayumitra", onOpen);
+  }, []);
+
   const toggle = () => {
     setOpen((o) => !o);
     setEverOpened(true);
